@@ -78,7 +78,12 @@ public class SigmaRule {
 
         UUID ruleId;
         if (rule.containsKey("id")) {
-            ruleId = UUID.fromString(rule.get("id").toString());
+            try {
+                ruleId = UUID.fromString(rule.get("id").toString());
+            } catch (IllegalArgumentException ex) {
+                errors.add(new SigmaIdentifierError("Sigma rule identifier must be an UUID"));
+                ruleId = null;
+            }
         } else {
             errors.add(new SigmaIdentifierError("Sigma rule identifier must be an UUID"));
             ruleId = null;
@@ -103,15 +108,15 @@ public class SigmaRule {
         Date ruleDate = null;
         if (rule.containsKey("date")) {
             try {
-                SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd", Locale.getDefault());
-                ruleDate = formatter.parse(rule.get("date").toString());
-            } catch (Exception ex) {
-                try {
+                if (rule.get("date").toString().contains("/")) {
+                    SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd", Locale.getDefault());
+                    ruleDate = formatter.parse(rule.get("date").toString());
+                } else if (rule.get("date").toString().contains("-")) {
                     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
                     ruleDate = formatter.parse(rule.get("date").toString());
-                } catch (Exception e) {
-                    errors.add(new SigmaDateError("Rule date " + rule.get("date").toString() + " is invalid, must be yyyy/mm/dd or yyyy-mm-dd"));
                 }
+            } catch (Exception ex) {
+                errors.add(new SigmaDateError("Rule date " + rule.get("date").toString() + " is invalid, must be yyyy/mm/dd or yyyy-mm-dd"));
             }
         }
 
@@ -133,8 +138,10 @@ public class SigmaRule {
 
         List<String> ruleTagsStr = (List<String>) rule.get("tags");
         List<SigmaRuleTag> ruleTags = new ArrayList<>();
-        for (String ruleTag: ruleTagsStr) {
-            ruleTags.add(SigmaRuleTag.fromStr(ruleTag));
+        if (ruleTagsStr != null) {
+            for (String ruleTag : ruleTagsStr) {
+                ruleTags.add(SigmaRuleTag.fromStr(ruleTag));
+            }
         }
 
         if (!collectErrors && !errors.isEmpty()) {
@@ -153,7 +160,59 @@ public class SigmaRule {
         return fromDict(ruleMap, collectErrors);
     }
 
+    public String getTitle() {
+        return title;
+    }
+
+    public SigmaLogSource getLogSource() {
+        return logSource;
+    }
+
     public SigmaDetections getDetection() {
         return detection;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public SigmaStatus getStatus() {
+        return status;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public List<String> getReferences() {
+        return references;
+    }
+
+    public List<SigmaRuleTag> getTags() {
+        return tags;
+    }
+
+    public String getAuthor() {
+        return author;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public List<String> getFields() {
+        return fields;
+    }
+
+    public List<String> getFalsePositives() {
+        return falsePositives;
+    }
+
+    public SigmaLevel getLevel() {
+        return level;
+    }
+
+    public List<SigmaError> getErrors() {
+        return errors;
     }
 }

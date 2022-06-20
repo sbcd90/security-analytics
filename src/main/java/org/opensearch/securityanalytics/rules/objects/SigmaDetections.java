@@ -54,6 +54,10 @@ public class SigmaDetections {
         return detections;
     }
 
+    public List<String> getCondition() {
+        return condition;
+    }
+
     public List<SigmaCondition> getParsedCondition() {
         return parsedCondition;
     }

@@ -27,7 +27,9 @@ public class SigmaTypeFacade {
             typeFacade = new SigmaTypeFacade();
         }
 
-        if (val.getClass().equals(Boolean.class)) {
+        if (val == null) {
+            return new SigmaNull();
+        } else if (val.getClass().equals(Boolean.class)) {
             return new SigmaBool((Boolean) val);
         } else if (val.getClass().equals(Integer.class)) {
             return new SigmaNumber((Integer) val);

@@ -24,7 +24,7 @@ public class SigmaDetection {
     public SigmaDetection(List<Either<SigmaDetectionItem, SigmaDetection>> detectionItems,
                           Either<Class<ConditionAND>, Class<ConditionOR>> itemLinking) throws SigmaDetectionError {
         this.detectionItems = detectionItems;
-        this.itemLinking = itemLinking;
+        this.itemLinking = itemLinking == null? Either.left(ConditionAND.class): itemLinking;
 
         if (this.detectionItems.size() == 0) {
             throw new SigmaDetectionError("Detection is empty");
@@ -114,5 +114,13 @@ public class SigmaDetection {
             }
         }
         return null;
+    }
+
+    public List<Either<SigmaDetectionItem, SigmaDetection>> getDetectionItems() {
+        return detectionItems;
+    }
+
+    public Either<Class<ConditionAND>, Class<ConditionOR>> getItemLinking() {
+        return itemLinking;
     }
 }

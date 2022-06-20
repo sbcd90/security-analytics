@@ -42,13 +42,13 @@ public class SigmaDetectionItem {
     private boolean operator;
 
     public SigmaDetectionItem(String field, List<Class<? extends SigmaModifier>> modifiers, List<SigmaType> value,
-                              Either<Class<ConditionAND>, Class<ConditionOR>> valueLinking, SigmaType originalValue) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
+                              Either<Class<ConditionAND>, Class<ConditionOR>> valueLinking, SigmaType originalValue, boolean autoModifiers) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
         this.field = field;
         this.modifiers = modifiers;
         this.value = value;
         this.valueLinking = valueLinking != null? valueLinking: Either.right(ConditionOR.class);
         this.originalValue = originalValue;
-        this.autoModifiers = true;
+        this.autoModifiers = autoModifiers;
 
         if (autoModifiers) {
             this.applyModifiers();
@@ -82,7 +82,7 @@ public class SigmaDetectionItem {
         if (key != null) {
             String[] tokens = key.split("\\|");
             if (tokens.length > 0) {
-                field = tokens[0];
+                field = tokens[0].isEmpty()? null: tokens[0];
                 modifierIds = Arrays.stream(tokens).skip(1).collect(Collectors.toList());
             }
         }
@@ -106,16 +106,20 @@ public class SigmaDetectionItem {
 
         List<SigmaType> sigmaTypes = new ArrayList<>();
         for (AnyOneOf<Integer, Float, String> v: values) {
-            if (v.isLeft()) {
-                sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getLeft()));
-            } else if (v.isMiddle()) {
-                sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getMiddle()));
+            if (v != null) {
+                if (v.isLeft()) {
+                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getLeft()));
+                } else if (v.isMiddle()) {
+                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getMiddle()));
+                } else {
+                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.get()));
+                }
             } else {
-                sigmaTypes.add(SigmaTypeFacade.sigmaType(v.get()));
+                sigmaTypes.add(SigmaTypeFacade.sigmaType(v));
             }
         }
 
-        return new SigmaDetectionItem(field, modifiers, sigmaTypes, null, null);
+        return new SigmaDetectionItem(field, modifiers, sigmaTypes, null, null, true);
     }
 
     public static SigmaDetectionItem fromValue(Either<AnyOneOf<Integer, Float, String>, List<AnyOneOf<Integer, Float, String>>> val) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
@@ -171,6 +175,22 @@ public class SigmaDetectionItem {
             }
         }
         return null;
+    }
+
+    public boolean isKeyword() {
+        return field == null;
+    }
+
+    public String getField() {
+        return field;
+    }
+
+    public List<SigmaType> getValue() {
+        return value;
+    }
+
+    public List<Class<? extends SigmaModifier>> getModifiers() {
+        return modifiers;
     }
 
     public Either<Class<ConditionAND>, Class<ConditionOR>> getValueLinking() {

@@ -29,10 +29,10 @@ public abstract class SigmaModifier {
 
     private boolean typeCheck(Either<SigmaType, List<SigmaType>> val) {
         Either<Class<?>, Class<?>> typePair = this.getTypeHints();
-        return (typePair.isLeft() && val.getLeft() != null && typePair.getLeft().equals(val.getLeft().getClass())) ||
-                (typePair.isRight() && val.getLeft() != null && typePair.get().equals(val.getLeft().getClass())) ||
-                (typePair.isLeft() && val.get() != null && typePair.getLeft().equals(val.get().getClass())) ||
-                (typePair.isRight() && val.get() != null && typePair.get().equals(val.get().getClass()));
+        return (typePair.isLeft() && val.isLeft() && typePair.getLeft().equals(val.getLeft().getClass())) ||
+                (typePair.isRight() && val.isLeft() && typePair.get().equals(val.getLeft().getClass())) ||
+                (typePair.isLeft() && val.isRight() && typePair.getLeft().equals(val.get().getClass())) ||
+                (typePair.isRight() && val.isRight() && typePair.get().equals(val.get().getClass()));
     }
 
     public abstract Either<SigmaType, List<SigmaType>> modify(Either<SigmaType, List<SigmaType>> val) throws SigmaValueError, SigmaRegularExpressionError, SigmaTypeError;
@@ -40,7 +40,7 @@ public abstract class SigmaModifier {
     public abstract Either<Class<?>, Class<?>> getTypeHints();
 
     public List<SigmaType> apply(Either<SigmaType, List<SigmaType>> val) throws SigmaTypeError, SigmaValueError, SigmaRegularExpressionError {
-        if (val.getLeft() instanceof SigmaExpansion) {
+        if (val.isLeft() && val.getLeft() instanceof SigmaExpansion) {
             List<SigmaType> values = new ArrayList<>();
             for (SigmaType value: ((SigmaExpansion) val.getLeft()).getValues()) {
                 List<? extends SigmaType> va = this.apply(Either.left(value));

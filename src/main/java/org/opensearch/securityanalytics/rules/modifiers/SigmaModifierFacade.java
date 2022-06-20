@@ -26,9 +26,9 @@ public class SigmaModifierFacade {
         modifierMap.put("wide", SigmaWideModifier.class);
         modifierMap.put("windash", SigmaWindowsDashModifier.class);
         modifierMap.put("re", SigmaRegularExpressionModifier.class);
-        modifierMap.put("cidr", SigmaCIDRModifier.class);
+        modifierMap.put("cidr", SigmaCIDRModifier.class);*/
         modifierMap.put("all", SigmaAllModifier.class);
-        modifierMap.put("lt", SigmaLessThanModifier.class);
+/*        modifierMap.put("lt", SigmaLessThanModifier.class);
         modifierMap.put("lte", SigmaLessThanEqualModifier.class);
         modifierMap.put("gt", SigmaGreaterThanModifier.class);
         modifierMap.put("gte", SigmaGreaterThanEqualModifier.class);
@@ -59,9 +59,9 @@ public class SigmaModifierFacade {
             return new SigmaRegularExpressionModifier(detectionItem, appliedModifiers, source);
         } else if (clazz.equals(SigmaCIDRModifier.class)) {
             return new SigmaCIDRModifier(detectionItem, appliedModifiers, source);
-        } else if (clazz.equals(SigmaAllModifier.class)) {
-            return new SigmaAllModifier(detectionItem, appliedModifiers, source);
-        } else if (clazz.equals(SigmaLessThanModifier.class)) {
+        }*/ else if (clazz.equals(SigmaAllModifier.class)) {
+            return new SigmaAllModifier(detectionItem, appliedModifiers);
+        }/*  else if (clazz.equals(SigmaLessThanModifier.class)) {
             return new SigmaLessThanModifier(detectionItem, appliedModifiers, source);
         } else if (clazz.equals(SigmaLessThanEqualModifier.class)) {
             return new SigmaLessThanEqualModifier(detectionItem, appliedModifiers, source);

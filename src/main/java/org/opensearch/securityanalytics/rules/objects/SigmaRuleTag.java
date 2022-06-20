@@ -19,4 +19,12 @@ public class SigmaRuleTag {
         String[] tagParts = tag.split("\\.", 2);
         return new SigmaRuleTag(tagParts[0], tagParts[1]);
     }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getName() {
+        return name;
+    }
 }
