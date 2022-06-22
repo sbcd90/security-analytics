@@ -26,19 +26,13 @@ public class ConditionIdentifier extends ConditionItem {
         this.identifier = args.get(0).get();
     }
 
-
-    public static ConditionIdentifier fromParsed(List<String> t) {
-        List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> args = new ArrayList<>();
-        args.add(Either.right(t.get(0)));
-        return new ConditionIdentifier(args);
-    }
-
     public ConditionItem postProcess(SigmaDetections detections, Object parent) throws SigmaConditionError {
         this.setParent((ConditionItem) parent);
 
         if (detections.getDetections().containsKey(this.identifier)) {
             SigmaDetection detection = detections.getDetections().get(this.identifier);
-            return detection.postProcess(detections, this).getLeft();
+            AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression> item = detection.postProcess(detections, this);
+            return item.isLeft()? item.getLeft(): (item.isMiddle()? item.getMiddle(): item.get());
         } else {
             throw new SigmaConditionError("Detection '" + this.identifier + "' not defined in detections");
         }

@@ -54,4 +54,8 @@ public class ConditionItem {
     public List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> getArgs() {
         return args;
     }
+
+    public void setArgs(List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> args) {
+        this.args = args;
+    }
 }
