@@ -47,40 +47,55 @@ public class SigmaDetection {
         }
     }
 
-    protected static SigmaDetection fromDefinition(Map<String, Object> definition) throws SigmaModifierError, SigmaDetectionError, SigmaValueError, SigmaRegularExpressionError {
+    protected static SigmaDetection fromDefinition(Object definition) throws SigmaModifierError, SigmaDetectionError, SigmaValueError, SigmaRegularExpressionError {
+        List<Either<SigmaDetectionItem, SigmaDetection>> detectionItems = new ArrayList<>();
         if (definition instanceof Map) {
-            List<Either<SigmaDetectionItem, SigmaDetection>> detectionItems = new ArrayList<>();
-            for (Map.Entry<String, Object> defEntry: definition.entrySet()) {
+            for (Map.Entry<String, Object> defEntry: ((Map<String, Object>) definition).entrySet()) {
                 Object val = defEntry.getValue();
 
-                if (val instanceof Integer) {
+                if (val == null) {
                     detectionItems.add(Either.left(SigmaDetectionItem.fromMapping(defEntry.getKey(),
-                            Either.left(AnyOneOf.leftVal((Integer) val)))));
+                            Either.left(null))));
+                } else if (val instanceof Integer) {
+                    detectionItems.add(Either.left(SigmaDetectionItem.fromMapping(defEntry.getKey(),
+                            Either.left((Integer) val))));
                 } else if (val instanceof Float) {
                     detectionItems.add(Either.left(SigmaDetectionItem.fromMapping(defEntry.getKey(),
-                            Either.left(AnyOneOf.middleVal((Float) val)))));
+                            Either.left((Float) val))));
                 } else if (val instanceof String) {
                     detectionItems.add(Either.left(SigmaDetectionItem.fromMapping(defEntry.getKey(),
-                            Either.left(AnyOneOf.rightVal(val.toString())))));
+                            Either.left(val.toString()))));
+                } else if (val instanceof Boolean) {
+                    detectionItems.add(Either.left(SigmaDetectionItem.fromMapping(defEntry.getKey(),
+                            Either.left((Boolean) val))));
                 } else if (val instanceof List) {
                     SigmaDetectionItem item =
-                    SigmaDetectionItem.fromMapping(defEntry.getKey(), Either.right(((List<Object>) val).stream().map(
-                            (Function<Object, AnyOneOf<Integer, Float, String>>) o -> {
-                                if (o instanceof Integer) {
-                                    return AnyOneOf.leftVal((Integer) o);
-                                } else if (o instanceof Float) {
-                                    return AnyOneOf.middleVal((Float) o);
-                                } else if (o instanceof String) {
-                                    return AnyOneOf.rightVal(o.toString());
-                                }
-                                return null;
-                            }).collect(Collectors.toList())));
+                    SigmaDetectionItem.fromMapping(defEntry.getKey(), Either.right(((List<Object>) val)));
                     detectionItems.add(Either.left(item));
                 }
             }
             return new SigmaDetection(detectionItems, null);
+        } else if (definition instanceof String || definition instanceof Integer) {
+            detectionItems.add(Either.left(SigmaDetectionItem.fromValue(Either.left(definition))));
+            return new SigmaDetection(detectionItems, null);
+        } else if (definition instanceof ArrayList) {
+            List<Object> definitionList = (List<Object>) definition;
+
+            boolean isItem = true;
+            for (Object definitionElem: definitionList) {
+                if (!(definitionElem instanceof String) && !(definitionElem instanceof Integer)) {
+                    detectionItems.add(Either.right(SigmaDetection.fromDefinition(definitionElem)));
+                    isItem = false;
+                }
+            }
+
+            if (isItem) {
+                detectionItems.add(Either.left(SigmaDetectionItem.fromValue(Either.right(definitionList))));
+                return new SigmaDetection(detectionItems, null);
+            }
+            return new SigmaDetection(detectionItems, null);
         }
-        return null;
+        throw new SigmaValueError("Unexpected Values");
     }
 
     public AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression> postProcess(SigmaDetections detections, Object parent) throws SigmaConditionError {

@@ -62,8 +62,12 @@ public abstract class QueryBackend {
                     query = this.convertCondition(new ConditionType(Either.left(AnyOneOf.leftVal((ConditionAND) conditionItem))));
                 } else if (conditionItem instanceof ConditionOR) {
                     query = this.convertCondition(new ConditionType(Either.left(AnyOneOf.middleVal((ConditionOR) conditionItem))));
-                } else {
+                } else if (conditionItem instanceof ConditionNOT) {
                     query = this.convertCondition(new ConditionType(Either.left(AnyOneOf.rightVal((ConditionNOT) conditionItem))));
+                } else if (conditionItem instanceof ConditionFieldEqualsValueExpression) {
+                    query = this.convertCondition(new ConditionType(Either.right(Either.left((ConditionFieldEqualsValueExpression) conditionItem))));
+                } else {
+                    query = this.convertCondition(new ConditionType(Either.right(Either.right((ConditionValueExpression) conditionItem))));
                 }
                 queries.add(query);
             }
@@ -155,9 +159,9 @@ public abstract class QueryBackend {
             return this.convertConditionFieldEqValCidr(condition);
         } else if (condition.getValue() instanceof SigmaCompareExpression) {
             return this.convertConditionFieldEqValOpVal(condition);
-        } else if (condition.getValue() instanceof SigmaNull) {
+        }*/ else if (condition.getValue() instanceof SigmaNull) {
             return this.convertConditionFieldEqValNull(condition);
-        } else if (condition.getValue() instanceof SigmaQueryExpression) {
+        }/* else if (condition.getValue() instanceof SigmaQueryExpression) {
             return this.convertConditionFieldEqValQueryExpr(condition);
         }*/ else if (condition.getValue() instanceof SigmaExpansion) {
             return this.convertConditionFieldEqValQueryExpansion(condition);
@@ -176,11 +180,11 @@ public abstract class QueryBackend {
 
 /*    public abstract Object convertConditionFieldEqValCidr(ConditionFieldEqualsValueExpression condition);
 
-    public abstract Object convertConditionFieldEqValOpVal(ConditionFieldEqualsValueExpression condition);
+    public abstract Object convertConditionFieldEqValOpVal(ConditionFieldEqualsValueExpression condition);*/
 
     public abstract Object convertConditionFieldEqValNull(ConditionFieldEqualsValueExpression condition);
 
-    public abstract Object convertConditionFieldEqValQueryExpr(ConditionFieldEqualsValueExpression condition);*/
+/*    public abstract Object convertConditionFieldEqValQueryExpr(ConditionFieldEqualsValueExpression condition);*/
 
     public Object convertConditionFieldEqValQueryExpansion(ConditionFieldEqualsValueExpression condition) {
         List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> args = new ArrayList<>();
@@ -210,7 +214,7 @@ public abstract class QueryBackend {
         }
     }
 
-    public abstract Object convertConditionValStr(ConditionValueExpression condition);
+    public abstract Object convertConditionValStr(ConditionValueExpression condition) throws SigmaValueError;
 
     public abstract Object convertConditionValNum(ConditionValueExpression condition);
 

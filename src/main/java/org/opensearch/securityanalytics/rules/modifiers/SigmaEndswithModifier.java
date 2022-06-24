@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics.rules.modifiers;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.opensearch.securityanalytics.rules.objects.SigmaDetectionItem;
 import org.opensearch.securityanalytics.rules.types.SigmaRegularExpression;
 import org.opensearch.securityanalytics.rules.types.SigmaString;
@@ -20,8 +21,8 @@ public class SigmaEndswithModifier extends SigmaValueModifier {
     }
 
     @Override
-    public Either<Class<?>, Class<?>> getTypeHints() {
-        return Either.left(SigmaString.class);
+    public Pair<Class<?>, Class<?>> getTypeHints() {
+        return Pair.of(SigmaString.class, null);
     }
 
     @Override

@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics.rules.modifiers;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaRegularExpressionError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaTypeError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
@@ -27,17 +28,17 @@ public abstract class SigmaModifier {
         this.appliedModifiers = appliedModifiers;
     }
 
-    private boolean typeCheck(Either<SigmaType, List<SigmaType>> val) {
-        Either<Class<?>, Class<?>> typePair = this.getTypeHints();
-        return (typePair.isLeft() && val.isLeft() && typePair.getLeft().equals(val.getLeft().getClass())) ||
-                (typePair.isRight() && val.isLeft() && typePair.get().equals(val.getLeft().getClass())) ||
-                (typePair.isLeft() && val.isRight() && typePair.getLeft().equals(val.get().getClass())) ||
-                (typePair.isRight() && val.isRight() && typePair.get().equals(val.get().getClass()));
+    public boolean typeCheck(Either<SigmaType, List<SigmaType>> val) {
+        Pair<Class<?>, Class<?>> typePair = this.getTypeHints();
+        return (typePair.getLeft() != null && val.isLeft() && typePair.getLeft().equals(val.getLeft().getClass())) ||
+                (typePair.getRight() != null && val.isLeft() && typePair.getRight().equals(val.getLeft().getClass())) ||
+                (typePair.getLeft() != null && val.isRight() && typePair.getLeft().equals(val.get().getClass())) ||
+                (typePair.getRight() != null && val.isRight() && typePair.getRight().equals(val.get().getClass()));
     }
 
     public abstract Either<SigmaType, List<SigmaType>> modify(Either<SigmaType, List<SigmaType>> val) throws SigmaValueError, SigmaRegularExpressionError, SigmaTypeError;
 
-    public abstract Either<Class<?>, Class<?>> getTypeHints();
+    public abstract Pair<Class<?>, Class<?>> getTypeHints();
 
     public List<SigmaType> apply(Either<SigmaType, List<SigmaType>> val) throws SigmaTypeError, SigmaValueError, SigmaRegularExpressionError {
         if (val.isLeft() && val.getLeft() instanceof SigmaExpansion) {

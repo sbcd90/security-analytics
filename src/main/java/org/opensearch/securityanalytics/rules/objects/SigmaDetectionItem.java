@@ -76,7 +76,7 @@ public class SigmaDetectionItem {
         }
     }
 
-    public static SigmaDetectionItem fromMapping(String key, Either<AnyOneOf<Integer, Float, String>, List<AnyOneOf<Integer, Float, String>>> val) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
+    public static <T> SigmaDetectionItem fromMapping(String key, Either<T, List<T>> val) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
         String field = null;
         List<String> modifierIds = new ArrayList<>();
         if (key != null) {
@@ -97,32 +97,24 @@ public class SigmaDetectionItem {
             }
         }
 
-        List<AnyOneOf<Integer, Float, String>> values = new ArrayList<>();
+        List<T> values = new ArrayList<>();
         if (val != null && val.isLeft()) {
             values.add(val.getLeft());
         } else if (val != null && val.isRight()) {
             values.addAll(val.get());
+        } else {
+            values.add(null);
         }
 
         List<SigmaType> sigmaTypes = new ArrayList<>();
-        for (AnyOneOf<Integer, Float, String> v: values) {
-            if (v != null) {
-                if (v.isLeft()) {
-                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getLeft()));
-                } else if (v.isMiddle()) {
-                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.getMiddle()));
-                } else {
-                    sigmaTypes.add(SigmaTypeFacade.sigmaType(v.get()));
-                }
-            } else {
-                sigmaTypes.add(SigmaTypeFacade.sigmaType(v));
-            }
+        for (T v: values) {
+            sigmaTypes.add(SigmaTypeFacade.sigmaType(v));
         }
 
         return new SigmaDetectionItem(field, modifiers, sigmaTypes, null, null, true);
     }
 
-    public static SigmaDetectionItem fromValue(Either<AnyOneOf<Integer, Float, String>, List<AnyOneOf<Integer, Float, String>>> val) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
+    public static <T> SigmaDetectionItem fromValue(Either<T, List<T>> val) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
         return SigmaDetectionItem.fromMapping(null, val);
     }
 

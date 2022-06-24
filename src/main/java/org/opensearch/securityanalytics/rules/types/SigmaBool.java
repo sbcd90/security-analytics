@@ -11,4 +11,8 @@ public class SigmaBool implements SigmaType {
     public SigmaBool(boolean aBoolean) {
         this.aBoolean = aBoolean;
     }
+
+    public boolean isaBoolean() {
+        return aBoolean;
+    }
 }

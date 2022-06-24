@@ -43,7 +43,7 @@ public class SigmaDetections {
         Map<String, SigmaDetection> detections = new HashMap<>();
         for (Map.Entry<String, Object> detection: detectionMap.entrySet()) {
             if (!"condition".equals(detection.getKey())) {
-                detections.put(detection.getKey(), SigmaDetection.fromDefinition((Map<String, Object>) detection.getValue()));
+                detections.put(detection.getKey(), SigmaDetection.fromDefinition(detection.getValue()));
             }
         }
 

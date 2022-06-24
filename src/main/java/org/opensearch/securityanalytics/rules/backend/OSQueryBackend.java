@@ -12,9 +12,7 @@ import org.opensearch.securityanalytics.rules.condition.ConditionOR;
 import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.condition.ConditionType;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
-import org.opensearch.securityanalytics.rules.types.SigmaExpansion;
-import org.opensearch.securityanalytics.rules.types.SigmaRegularExpression;
-import org.opensearch.securityanalytics.rules.types.SigmaString;
+import org.opensearch.securityanalytics.rules.types.*;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 import org.apache.commons.lang3.NotImplementedException;
@@ -31,6 +29,8 @@ public class OSQueryBackend extends QueryBackend {
     private String orToken;
 
     private String andToken;
+
+    private String notToken;
 
     private String escapeChar;
 
@@ -52,6 +52,12 @@ public class OSQueryBackend extends QueryBackend {
 
     private String cidrExpression;
 
+    private String fieldNullExpression;
+
+    private String unboundValueStrExpression;
+
+    private String unboundValueNumExpression;
+
     private static final String groupExpression = "(%s)";
 
     private static final List<Class<?>> precedence = Arrays.asList(ConditionNOT.class, ConditionAND.class, ConditionOR.class);
@@ -61,6 +67,7 @@ public class OSQueryBackend extends QueryBackend {
         this.tokenSeparator = " ";
         this.orToken = "OR";
         this.andToken = "AND";
+        this.notToken = "NOT";
         this.escapeChar = "\\";
         this.wildcardMulti = "*";
         this.wildcardSingle = "*";
@@ -71,6 +78,9 @@ public class OSQueryBackend extends QueryBackend {
         this.reEscapeChar = "\\";
         this.reExpression = "\"%s\" : \"%s\"";
         this.cidrExpression = "\"%s\" : \"%s\"";
+        this.fieldNullExpression = "\"%s\" : null";
+        this.unboundValueStrExpression = "\"_\" : \"%s\"";
+        this.unboundValueNumExpression = "\"_\" : %s";
     }
 
     @Override
@@ -158,7 +168,7 @@ public class OSQueryBackend extends QueryBackend {
             for (Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String> arg: condition.getArgs()) {
                 boolean prec;
                 Object converted = null;
-                if (arg.getLeft() != null) {
+                if (arg.isLeft()) {
                     if (arg.getLeft().isLeft()) {
                         ConditionType argType = arg.getLeft().getLeft().getClass().equals(ConditionAND.class)? new ConditionType(Either.left(AnyOneOf.leftVal((ConditionAND) arg.getLeft().getLeft()))):
                                 (arg.getLeft().getLeft().getClass().equals(ConditionOR.class)? new ConditionType(Either.left(AnyOneOf.middleVal((ConditionOR) arg.getLeft().getLeft()))):
@@ -207,6 +217,25 @@ public class OSQueryBackend extends QueryBackend {
 
     @Override
     public Object convertConditionNot(ConditionNOT condition) {
+        Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String> arg = condition.getArgs().get(0);
+        try {
+            if (arg.isLeft()) {
+                if (arg.getLeft().isLeft()) {
+                    ConditionType argType = arg.getLeft().getLeft().getClass().equals(ConditionAND.class) ? new ConditionType(Either.left(AnyOneOf.leftVal((ConditionAND) arg.getLeft().getLeft()))) :
+                            (arg.getLeft().getLeft().getClass().equals(ConditionOR.class) ? new ConditionType(Either.left(AnyOneOf.middleVal((ConditionOR) arg.getLeft().getLeft()))) :
+                                    new ConditionType(Either.left(AnyOneOf.rightVal((ConditionNOT) arg.getLeft().getLeft()))));
+                    return this.notToken + this.tokenSeparator + this.convertConditionGroup(argType);
+                } else if (arg.getLeft().isMiddle()) {
+                    ConditionType argType = new ConditionType(Either.right(Either.left(arg.getLeft().getMiddle())));
+                    return this.notToken + this.tokenSeparator + this.convertCondition(argType).toString();
+                } else {
+                    ConditionType argType = new ConditionType(Either.right(Either.right(arg.getLeft().get())));
+                    return this.notToken + this.tokenSeparator + this.convertCondition(argType).toString();
+                }
+            }
+        } catch (Exception ex) {
+            throw new NotImplementedException("Operator 'not' not supported by the backend");
+        }
         return null;
     }
 
@@ -224,7 +253,11 @@ public class OSQueryBackend extends QueryBackend {
 
     @Override
     public Object convertConditionFieldEqValBool(ConditionFieldEqualsValueExpression condition) {
-        return null;
+        return this.strQuote + this.getMappedField(condition.getField()) + this.strQuote + " " + this.eqToken + " " + ((SigmaBool) condition.getValue()).isaBoolean();
+    }
+
+    public Object convertConditionFieldEqValNull(ConditionFieldEqualsValueExpression condition) {
+        return String.format(Locale.getDefault(), this.fieldNullExpression, this.getMappedField(condition.getField()));
     }
 
     @Override
@@ -253,13 +286,13 @@ public class OSQueryBackend extends QueryBackend {
     }*/
 
     @Override
-    public Object convertConditionValStr(ConditionValueExpression condition) {
-        return null;
+    public Object convertConditionValStr(ConditionValueExpression condition) throws SigmaValueError {
+        return String.format(Locale.getDefault(), this.unboundValueStrExpression, this.convertValueStr((SigmaString) condition.getValue()));
     }
 
     @Override
     public Object convertConditionValNum(ConditionValueExpression condition) {
-        return null;
+        return String.format(Locale.getDefault(), this.unboundValueNumExpression, condition.getValue().toString());
     }
 
 /*    @Override
