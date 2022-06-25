@@ -15,4 +15,9 @@ public class SigmaBool implements SigmaType {
     public boolean isaBoolean() {
         return aBoolean;
     }
+
+    @Override
+    public String toString() {
+        return String.valueOf(aBoolean);
+    }
 }

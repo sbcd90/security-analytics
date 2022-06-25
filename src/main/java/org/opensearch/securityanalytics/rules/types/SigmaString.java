@@ -9,12 +9,7 @@ import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.*;
 
 public class SigmaString implements SigmaType {
 
@@ -29,10 +24,14 @@ public class SigmaString implements SigmaType {
     private List<AnyOneOf<String, Character, Placeholder>> sOpt;
 
     public SigmaString(String s) {
+        if (s == null) {
+            s = "";
+        }
+
         this.original = s;
         int sLen = s.length();
 
-        List<String> r = new ArrayList<>();
+        List<AnyOneOf<String, Character, Placeholder>> r = new ArrayList<>();
         StringBuilder acc = new StringBuilder();
         boolean escaped = false;
         for (int i = 0; i < sLen; i++) {
@@ -49,15 +48,15 @@ public class SigmaString implements SigmaType {
             } else {
                 if (s.charAt(i) == SpecialChars.WILDCARD_MULTI || s.charAt(i) == SpecialChars.WILDCARD_SINGLE) {
                     if (!acc.toString().equals("")) {
-                        r.add(acc.toString());
+                        r.add(AnyOneOf.leftVal(acc.toString()));
                     }
 
                     switch (s.charAt(i)) {
                         case SpecialChars.WILDCARD_MULTI:
-                            r.add(String.valueOf(SpecialChars.WILDCARD_MULTI));
+                            r.add(AnyOneOf.middleVal(SpecialChars.WILDCARD_MULTI));
                             break;
                         case SpecialChars.WILDCARD_SINGLE:
-                            r.add(String.valueOf(SpecialChars.WILDCARD_SINGLE));
+                            r.add(AnyOneOf.middleVal(SpecialChars.WILDCARD_SINGLE));
                     }
                     acc = new StringBuilder();
                 } else {
@@ -70,14 +69,13 @@ public class SigmaString implements SigmaType {
             acc.append(SpecialChars.ESCAPE_CHAR);
         }
         if (!acc.toString().equals("")) {
-            r.add(acc.toString());
+            r.add(AnyOneOf.leftVal(acc.toString()));
         }
 
-        this.sOpt = r.stream().map((Function<String, AnyOneOf<String, Character, Placeholder>>) AnyOneOf::leftVal)
-                .collect(Collectors.toList());
+        this.sOpt = r;
     }
 
-    private void mergeStrings() {
+    public void mergeStrings() {
         List<AnyOneOf<String, Character, Placeholder>> mergedOpts = new ArrayList<>();
 
         int size = this.sOpt.size();
@@ -211,6 +209,26 @@ public class SigmaString implements SigmaType {
 
     public String getOriginal() {
         return original;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SigmaString that = (SigmaString) o;
+
+        if (sOpt.size() != that.sOpt.size()) {
+            return false;
+        }
+
+        for (int idx = 0; idx < sOpt.size(); ++idx) {
+            if ((sOpt.get(idx).isLeft() && !that.sOpt.get(idx).isLeft()) ||
+                    (sOpt.get(idx).isMiddle() && !that.sOpt.get(idx).isMiddle()) ||
+                    (sOpt.get(idx).isRight() && !that.sOpt.get(idx).isRight())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

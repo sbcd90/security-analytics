@@ -116,7 +116,7 @@ public class QueryBackendTests extends OpenSearchTestCase {
                 "                sel:\n" +
                 "                    fieldA1|startswith: \"va*lue\"\n" +
                 "                condition: sel", false));
-        Assert.assertEquals("\"mappedA\" : \"va\\*lue*\"", queries.get(0).toString());
+        Assert.assertEquals("\"mappedA\" : \"va*lue*\"", queries.get(0).toString());
     }
 
     public void testConvertValueStrEndsWith() throws IOException, SigmaError {
@@ -156,7 +156,7 @@ public class QueryBackendTests extends OpenSearchTestCase {
                 "                sel:\n" +
                 "                    fieldA1|endswith: \"va*lue\"\n" +
                 "                condition: sel", false));
-        Assert.assertEquals("\"mappedA\" : \"*va\\*lue\"", queries.get(0).toString());
+        Assert.assertEquals("\"mappedA\" : \"*va*lue\"", queries.get(0).toString());
     }
 
     public void testConvertValueStrContains() throws IOException, SigmaError {
@@ -196,7 +196,7 @@ public class QueryBackendTests extends OpenSearchTestCase {
                         "                sel:\n" +
                         "                    fieldA1|contains: \"va*lue\"\n" +
                         "                condition: sel", false));
-        Assert.assertEquals("\"mappedA\" : \"*va\\*lue*\"", queries.get(0).toString());
+        Assert.assertEquals("\"mappedA\" : \"*va*lue*\"", queries.get(0).toString());
     }
 
     public void testConvertValueNum() throws IOException, SigmaError {
@@ -303,7 +303,7 @@ public class QueryBackendTests extends OpenSearchTestCase {
                 "                        - value2*\n" +
                 "                        - val*ue3\n" +
                 "                condition: sel", false));
-        Assert.assertEquals("\"mappedA\" : \"value1\" OR \"mappedA\" : \"value2\\*\" OR \"mappedA\" : \"val\\*ue3\"", queries.get(0).toString());
+        Assert.assertEquals("\"mappedA\" : \"value1\" OR \"mappedA\" : \"value2*\" OR \"mappedA\" : \"val*ue3\"", queries.get(0).toString());
     }
 
     public void testConvertOrInSeparate() throws IOException, SigmaError {

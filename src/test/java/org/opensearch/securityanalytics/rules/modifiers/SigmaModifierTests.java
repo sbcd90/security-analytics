@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.securityanalytics.modifiers;
+package org.opensearch.securityanalytics.rules.modifiers;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
@@ -57,7 +57,7 @@ public class SigmaModifierTests extends OpenSearchTestCase {
         Assert.assertTrue(dummySequenceModifier().typeCheck(Either.right(elements)));
     }
 
-    private SigmaDetectionItem dummyDetectionItem() throws SigmaRegularExpressionError, SigmaValueError, SigmaModifierError {
+    public SigmaDetectionItem dummyDetectionItem() throws SigmaRegularExpressionError, SigmaValueError, SigmaModifierError {
         return new SigmaDetectionItem(null, Collections.emptyList(), List.of(new SigmaString("foobar")), null, null, false);
     }
 
