@@ -21,18 +21,18 @@ public class SigmaModifierFacade {
         modifierMap.put("contains", SigmaContainsModifier.class);
         modifierMap.put("startswith", SigmaStartswithModifier.class);
         modifierMap.put("endswith", SigmaEndswithModifier.class);
-/*        modifierMap.put("base64", SigmaBase64Modifier.class);
+        modifierMap.put("base64", SigmaBase64Modifier.class);
         modifierMap.put("base64offset", SigmaBase64OffsetModifier.class);
         modifierMap.put("wide", SigmaWideModifier.class);
         modifierMap.put("windash", SigmaWindowsDashModifier.class);
         modifierMap.put("re", SigmaRegularExpressionModifier.class);
-        modifierMap.put("cidr", SigmaCIDRModifier.class);*/
+        modifierMap.put("cidr", SigmaCIDRModifier.class);
         modifierMap.put("all", SigmaAllModifier.class);
-/*        modifierMap.put("lt", SigmaLessThanModifier.class);
+        modifierMap.put("lt", SigmaLessThanModifier.class);
         modifierMap.put("lte", SigmaLessThanEqualModifier.class);
         modifierMap.put("gt", SigmaGreaterThanModifier.class);
         modifierMap.put("gte", SigmaGreaterThanEqualModifier.class);
-        modifierMap.put("expand", SigmaExpandModifier.class);*/
+        modifierMap.put("expand", SigmaExpandModifier.class);
     }
 
     public static SigmaModifier sigmaModifier(Class<? extends SigmaModifier> clazz, SigmaDetectionItem detectionItem,
@@ -47,31 +47,31 @@ public class SigmaModifierFacade {
             return new SigmaStartswithModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaEndswithModifier.class)) {
             return new SigmaEndswithModifier(detectionItem, appliedModifiers);
-        }/* else if (clazz.equals(SigmaBase64Modifier.class)) {
-            return new SigmaBase64Modifier(detectionItem, appliedModifiers, source);
+        } else if (clazz.equals(SigmaBase64Modifier.class)) {
+            return new SigmaBase64Modifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaBase64OffsetModifier.class)) {
-            return new SigmaBase64OffsetModifier(detectionItem, appliedModifiers, source);
+            return new SigmaBase64OffsetModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaWideModifier.class)) {
-            return new SigmaWideModifier(detectionItem, appliedModifiers, source);
+            return new SigmaWideModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaWindowsDashModifier.class)) {
-            return new SigmaWindowsDashModifier(detectionItem, appliedModifiers, source);
+            return new SigmaWindowsDashModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaRegularExpressionModifier.class)) {
-            return new SigmaRegularExpressionModifier(detectionItem, appliedModifiers, source);
+            return new SigmaRegularExpressionModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaCIDRModifier.class)) {
-            return new SigmaCIDRModifier(detectionItem, appliedModifiers, source);
-        }*/ else if (clazz.equals(SigmaAllModifier.class)) {
+            return new SigmaCIDRModifier(detectionItem, appliedModifiers);
+        } else if (clazz.equals(SigmaAllModifier.class)) {
             return new SigmaAllModifier(detectionItem, appliedModifiers);
-        }/*  else if (clazz.equals(SigmaLessThanModifier.class)) {
-            return new SigmaLessThanModifier(detectionItem, appliedModifiers, source);
+        }  else if (clazz.equals(SigmaLessThanModifier.class)) {
+            return new SigmaLessThanModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaLessThanEqualModifier.class)) {
-            return new SigmaLessThanEqualModifier(detectionItem, appliedModifiers, source);
+            return new SigmaLessThanEqualModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaGreaterThanModifier.class)) {
-            return new SigmaGreaterThanModifier(detectionItem, appliedModifiers, source);
+            return new SigmaGreaterThanModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaGreaterThanEqualModifier.class)) {
-            return new SigmaGreaterThanEqualModifier(detectionItem, appliedModifiers, source);
+            return new SigmaGreaterThanEqualModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaExpandModifier.class)) {
-            return new SigmaExpandModifier(detectionItem, appliedModifiers, source);
-        }*/
+            return new SigmaExpandModifier(detectionItem, appliedModifiers);
+        }
         throw new SigmaModifierError("modifier not found-" + clazz.getName());
     }
 

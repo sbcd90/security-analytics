@@ -10,6 +10,8 @@ import org.opensearch.securityanalytics.rules.utils.Either;
 
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public class SigmaString implements SigmaType {
 
@@ -197,6 +199,14 @@ public class SigmaString implements SigmaType {
             }
         }
         return s.toString();
+    }
+
+    public SigmaString replaceWithPlaceholder(Pattern regex, String placeholderName) {
+        return null;
+    }
+
+    public List<SigmaString> replacePlaceholders(Function<Placeholder, List<AnyOneOf<String, Character, Placeholder>>> callback) {
+        return null;
     }
 
     public List<AnyOneOf<String, Character, Placeholder>> getsOpt() {
