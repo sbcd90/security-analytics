@@ -23,7 +23,7 @@ public class SigmaRegularExpressionModifier extends SigmaValueModifier {
 
     @Override
     public Pair<Class<?>, Class<?>> getTypeHints() {
-        return Pair.of(SigmaRegularExpression.class, null);
+        return Pair.of(SigmaRegularExpression.class, SigmaString.class);
     }
 
     @Override

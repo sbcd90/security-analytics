@@ -282,11 +282,15 @@ public class SigmaString implements SigmaType {
 
                 for (SigmaString resultSuffix: suffix.replacePlaceholders(callback)) {
                     for (AnyOneOf<String, Character, Placeholder> replacement: callback.apply(placeholder)) {
-                        resultSuffix.prepend(replacement);
-                        prefix.getsOpt().forEach(resultSuffix::prepend);
-                        results.add(resultSuffix);
+                        SigmaString tempSuffix = new SigmaString(null);
+                        tempSuffix.setsOpt(resultSuffix.getsOpt());
+
+                        tempSuffix.prepend(replacement);
+                        prefix.getsOpt().forEach(tempSuffix::prepend);
+                        results.add(tempSuffix);
                     }
                 }
+                return results;
             }
         }
         return results;
@@ -297,7 +301,16 @@ public class SigmaString implements SigmaType {
     }
 
     public void setsOpt(List<AnyOneOf<String, Character, Placeholder>> sOpt) {
-        this.sOpt = sOpt;
+        this.sOpt = new ArrayList<>();
+        for (AnyOneOf<String, Character, Placeholder> sOptElem: sOpt) {
+            if (sOptElem.isLeft()) {
+                this.sOpt.add(AnyOneOf.leftVal(sOptElem.getLeft()));
+            } else if (sOptElem.isMiddle()) {
+                this.sOpt.add(AnyOneOf.middleVal(sOptElem.getMiddle()));
+            } else {
+                this.sOpt.add(AnyOneOf.rightVal(sOptElem.get()));
+            }
+        }
     }
 
     public String getOriginal() {

@@ -32,7 +32,6 @@ public class SigmaModifierFacade {
         modifierMap.put("lte", SigmaLessThanEqualModifier.class);
         modifierMap.put("gt", SigmaGreaterThanModifier.class);
         modifierMap.put("gte", SigmaGreaterThanEqualModifier.class);
-        modifierMap.put("expand", SigmaExpandModifier.class);
     }
 
     public static SigmaModifier sigmaModifier(Class<? extends SigmaModifier> clazz, SigmaDetectionItem detectionItem,
@@ -69,8 +68,6 @@ public class SigmaModifierFacade {
             return new SigmaGreaterThanModifier(detectionItem, appliedModifiers);
         } else if (clazz.equals(SigmaGreaterThanEqualModifier.class)) {
             return new SigmaGreaterThanEqualModifier(detectionItem, appliedModifiers);
-        } else if (clazz.equals(SigmaExpandModifier.class)) {
-            return new SigmaExpandModifier(detectionItem, appliedModifiers);
         }
         throw new SigmaModifierError("modifier not found-" + clazz.getName());
     }

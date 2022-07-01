@@ -44,4 +44,8 @@ public class SigmaCIDRExpression implements SigmaType {
         }
         return true;
     }
+
+    public String getCidr() {
+        return cidr;
+    }
 }
