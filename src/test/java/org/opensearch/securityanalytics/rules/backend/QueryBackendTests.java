@@ -534,6 +534,32 @@ public class QueryBackendTests extends OpenSearchTestCase {
         Assert.assertEquals("NOT \"fieldA\" : \"value1\"", queries.get(0).toString());
     }
 
+    public void testConvertPrecedence() throws IOException, SigmaError {
+        OSQueryBackend queryBackend = testBackend();
+        List<Object> queries = queryBackend.convertRule(SigmaRule.fromYaml(
+                "            title: Test\n" +
+                "            id: 39f919f3-980b-4e6f-a975-8af7e507ef2b\n" +
+                "            status: test\n" +
+                "            level: critical\n" +
+                "            description: Detects QuarksPwDump clearing access history in hive\n" +
+                "            author: Florian Roth\n" +
+                "            date: 2017/05/15\n" +
+                "            logsource:\n" +
+                "                category: test_category\n" +
+                "                product: test_product\n" +
+                "            detection:\n" +
+                "                sel1:\n" +
+                "                    fieldA: value1\n" +
+                "                sel2:\n" +
+                "                    fieldB: value2\n" +
+                "                sel3:\n" +
+                "                    fieldC: value4\n" +
+                "                sel4:\n" +
+                "                    fieldD: value5\n" +
+                "                condition: (sel1 or sel2) and not (sel3 and sel4)", false));
+        Assert.assertEquals("(\"fieldA\" : \"value1\" OR \"mappedB\" : \"value2\") AND NOT (\"fieldC\" : \"value4\" AND \"fieldD\" : \"value5\")", queries.get(0).toString());
+    }
+
     public void testConvertMultiConditions() throws IOException, SigmaError {
         OSQueryBackend queryBackend = testBackend();
         List<Object> queries = queryBackend.convertRule(SigmaRule.fromYaml(

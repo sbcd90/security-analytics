@@ -15,5 +15,18 @@ public class SigmaCompareExpression implements SigmaType {
 
     private SigmaNumber number;
 
-    private CompareOperators op;
+    private String op;
+
+    public SigmaCompareExpression(SigmaNumber number, String op) {
+        this.number = number;
+        this.op = op;
+    }
+
+    public SigmaNumber getNumber() {
+        return number;
+    }
+
+    public String getOp() {
+        return op;
+    }
 }

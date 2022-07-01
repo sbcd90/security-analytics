@@ -4,6 +4,8 @@
  */
 package org.opensearch.securityanalytics.rules.objects;
 
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.opensearch.securityanalytics.rules.condition.*;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
@@ -31,14 +33,24 @@ public class SigmaCondition {
 
     private SigmaDetections detections;
 
+    private ConditionParser parser;
+
+    private ConditionTraverseVisitor conditionVisitor;
+
     public SigmaCondition(String condition, SigmaDetections detections) {
         this.condition = condition;
         this.detections = detections;
+
+        ConditionLexer lexer = new ConditionLexer(CharStreams.fromString(condition));
+        this.parser = new ConditionParser(new CommonTokenStream(lexer));
+        this.conditionVisitor = new ConditionTraverseVisitor(this);
     }
 
     public ConditionItem parsed() throws SigmaConditionError {
-        if (condition.contains(operators.get(0))) {
-            List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(0))));
+        Either<ConditionItem, String> itemOrCondition = conditionVisitor.visit(parser.start());
+        if (itemOrCondition.isLeft()) {
+            return itemOrCondition.getLeft();
+/*            List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(0))));
             tokens.remove(0);
             ConditionItem conditionItem = ConditionNOT.fromParsed(tokens);
             conditionItem.setArgs(convertArgs(conditionItem.getArgs()));
@@ -52,7 +64,7 @@ public class SigmaCondition {
             List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(2))));
             ConditionItem conditionItem = ConditionOR.fromParsed(tokens);
             conditionItem.setArgs(convertArgs(conditionItem.getArgs()));
-            return conditionItem;
+            return conditionItem;*/
         } else {
             return Objects.requireNonNull(parsed(condition)).isLeft()? Objects.requireNonNull(parsed(condition)).getLeft():
                     ((Objects.requireNonNull(parsed(condition))).isMiddle()? Objects.requireNonNull(parsed(condition)).getMiddle():
@@ -60,7 +72,7 @@ public class SigmaCondition {
         }
     }
 
-    private List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> convertArgs(
+    public List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> convertArgs(
             List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> parsedArgs) throws SigmaConditionError {
         List<Either<AnyOneOf<ConditionItem, ConditionFieldEqualsValueExpression, ConditionValueExpression>, String>> newArgs = new ArrayList<>();
 

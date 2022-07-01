@@ -56,14 +56,9 @@ public class ConditionTests extends OpenSearchTestCase {
         SigmaCondition sigmaCondition = new SigmaCondition("detection1 or detection2 or detection4 or detection5", sigmaSimpleDetections());
         ConditionItem conditionItem = sigmaCondition.parsed();
         Assert.assertEquals(ConditionOR.class, conditionItem.getClass());
-        Assert.assertTrue(conditionItem.getArgs().get(0).isLeft() && conditionItem.getArgs().get(0).getLeft().isRight());
+        Assert.assertTrue(conditionItem.getArgs().get(0).isLeft() && conditionItem.getArgs().get(0).getLeft().isLeft());
         Assert.assertTrue(conditionItem.getArgs().get(1).isLeft() && conditionItem.getArgs().get(1).getLeft().isRight());
-        Assert.assertTrue(conditionItem.getArgs().get(2).isLeft() && conditionItem.getArgs().get(2).getLeft().isRight());
-        Assert.assertTrue(conditionItem.getArgs().get(3).isLeft() && conditionItem.getArgs().get(3).getLeft().isRight());
-        Assert.assertEquals("val1", conditionItem.getArgs().get(0).getLeft().get().getValue().toString());
-        Assert.assertEquals("val2", conditionItem.getArgs().get(1).getLeft().get().getValue().toString());
-        Assert.assertEquals("val4", conditionItem.getArgs().get(2).getLeft().get().getValue().toString());
-        Assert.assertEquals("val5", conditionItem.getArgs().get(3).getLeft().get().getValue().toString());
+        Assert.assertTrue(conditionItem.getArgs().get(0).getLeft().isLeft() && conditionItem.getArgs().get(0).getLeft().getLeft().getArgs().size() == 2);
     }
 
     public void testSelector1() throws SigmaError {
