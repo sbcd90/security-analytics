@@ -11,7 +11,7 @@ NOT: 'not';
 LPAREN     : '(' ;
 RPAREN     : ')' ;
 
-SELECTOR: ('1'|'any'|'all')( ' of ' )[A-Za-z0-9*]+ ;
+SELECTOR: ('1'|'any'|'all')( ' of ' )[A-Za-z_0-9*]+ ;
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]* ;
 WHITESPACE: [ \r\n\t]+ -> skip;
 
