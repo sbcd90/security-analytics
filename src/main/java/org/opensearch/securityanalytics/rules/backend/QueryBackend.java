@@ -4,12 +4,26 @@
  */
 package org.opensearch.securityanalytics.rules.backend;
 
-import org.opensearch.securityanalytics.rules.condition.*;
+import org.opensearch.securityanalytics.rules.condition.ConditionAND;
+import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
+import org.opensearch.securityanalytics.rules.condition.ConditionItem;
+import org.opensearch.securityanalytics.rules.condition.ConditionNOT;
+import org.opensearch.securityanalytics.rules.condition.ConditionOR;
+import org.opensearch.securityanalytics.rules.condition.ConditionType;
+import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
 import org.opensearch.securityanalytics.rules.objects.SigmaCondition;
 import org.opensearch.securityanalytics.rules.objects.SigmaRule;
-import org.opensearch.securityanalytics.rules.types.*;
+import org.opensearch.securityanalytics.rules.types.SigmaBool;
+import org.opensearch.securityanalytics.rules.types.SigmaCIDRExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaCompareExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaExpansion;
+import org.opensearch.securityanalytics.rules.types.SigmaNull;
+import org.opensearch.securityanalytics.rules.types.SigmaNumber;
+import org.opensearch.securityanalytics.rules.types.SigmaRegularExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaString;
+import org.opensearch.securityanalytics.rules.types.SigmaType;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 import org.apache.commons.lang3.tuple.Pair;
@@ -18,7 +32,12 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public abstract class QueryBackend {
 
@@ -155,11 +174,11 @@ public abstract class QueryBackend {
             return this.convertConditionFieldEqValBool(condition);
         } else if (condition.getValue() instanceof SigmaRegularExpression) {
             return this.convertConditionFieldEqValRe(condition);
-        }/* else if (condition.getValue() instanceof SigmaCIDRExpression) {
+        } else if (condition.getValue() instanceof SigmaCIDRExpression) {
             return this.convertConditionFieldEqValCidr(condition);
         } else if (condition.getValue() instanceof SigmaCompareExpression) {
             return this.convertConditionFieldEqValOpVal(condition);
-        }*/ else if (condition.getValue() instanceof SigmaNull) {
+        } else if (condition.getValue() instanceof SigmaNull) {
             return this.convertConditionFieldEqValNull(condition);
         }/* else if (condition.getValue() instanceof SigmaQueryExpression) {
             return this.convertConditionFieldEqValQueryExpr(condition);
@@ -178,9 +197,9 @@ public abstract class QueryBackend {
 
     public abstract Object convertConditionFieldEqValRe(ConditionFieldEqualsValueExpression condition);
 
-/*    public abstract Object convertConditionFieldEqValCidr(ConditionFieldEqualsValueExpression condition);
+    public abstract Object convertConditionFieldEqValCidr(ConditionFieldEqualsValueExpression condition);
 
-    public abstract Object convertConditionFieldEqValOpVal(ConditionFieldEqualsValueExpression condition);*/
+   public abstract Object convertConditionFieldEqValOpVal(ConditionFieldEqualsValueExpression condition);
 
     public abstract Object convertConditionFieldEqValNull(ConditionFieldEqualsValueExpression condition);
 
@@ -203,9 +222,9 @@ public abstract class QueryBackend {
             return this.convertConditionValNum(condition);
         } else if (condition.getValue() instanceof SigmaBool) {
             throw new SigmaValueError("Boolean values can't appear as standalone value without a field name.");
-        }/* else if (condition.getValue() instanceof SigmaRegularExpression) {
+        } else if (condition.getValue() instanceof SigmaRegularExpression) {
             return this.convertConditionValRe(condition);
-        } else if (condition.getValue() instanceof SigmaCIDRExpression) {
+        }/* else if (condition.getValue() instanceof SigmaCIDRExpression) {
             throw new SigmaValueError("CIDR values can't appear as standalone value without a field name.");
         } else if (condition.getValue() instanceof SigmaQueryExpression) {
             return this.convertConditionValQueryExpr(condition);
@@ -218,7 +237,7 @@ public abstract class QueryBackend {
 
     public abstract Object convertConditionValNum(ConditionValueExpression condition);
 
-/*    public abstract Object convertConditionValRe(ConditionValueExpression condition);
+    public abstract Object convertConditionValRe(ConditionValueExpression condition);
 
-    public abstract Object convertConditionValQueryExpr(ConditionValueExpression condition);*/
+/*   public abstract Object convertConditionValQueryExpr(ConditionValueExpression condition);*/
 }

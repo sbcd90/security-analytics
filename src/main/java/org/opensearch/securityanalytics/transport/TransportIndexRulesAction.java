@@ -59,21 +59,13 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
                 final String[] array = url.split("!");
                 final FileSystem fs = FileSystems.newFileSystem(URI.create(array[0]), env);
                 path = fs.getPath(array[1]);
+                loadQueries(path);
+                fs.close();
             } else {
                 path = Path.of(url);
+                loadQueries(path);
             }
 
-            Stream<Path> folder = Files.list(path);
-
-            List<String> rules = getRules(folder.collect(Collectors.toList()));
-
-            for (String ruleStr: rules) {
-                SigmaRule rule = SigmaRule.fromYaml(ruleStr, true);
-
-                QueryBackend backend = new OSQueryBackend(true, false);
-                List<Object> queries = backend.convertRule(rule);
-                log.info(queries.get(0).toString());
-            }
             actionListener.onResponse(new IndexRulesResponse(RestStatus.CREATED));
         } catch (URISyntaxException | IOException | SigmaError ex) {
             actionListener.onFailure(ex);
@@ -83,21 +75,32 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
     private List<String> getRules(List<Path> listOfRules) {
         List<String> rules = new ArrayList<>();
 
-        listOfRules.forEach(new Consumer<Path>() {
-            @Override
-            public void accept(Path path) {
-                try {
-                    if (Files.isDirectory(path)) {
-                        rules.addAll(getRules(Files.list(path).collect(Collectors.toList())));
-                    } else {
-                        rules.add(Files.readString(path, Charset.defaultCharset()));
-                    }
-                } catch (IOException ex) {
-                    // suppress with log
-                    log.warn("rules cannot be parsed");
+        listOfRules.forEach(path -> {
+            try {
+                if (Files.isDirectory(path)) {
+                    rules.addAll(getRules(Files.list(path).collect(Collectors.toList())));
+                } else {
+                    rules.add(Files.readString(path, Charset.defaultCharset()));
                 }
+            } catch (IOException ex) {
+                // suppress with log
+                log.warn("rules cannot be parsed");
             }
         });
         return rules;
+    }
+
+    private void loadQueries(Path path) throws IOException, SigmaError {
+        Stream<Path> folder = Files.list(path);
+
+        List<String> rules = getRules(folder.collect(Collectors.toList()));
+
+        for (String ruleStr: rules) {
+            SigmaRule rule = SigmaRule.fromYaml(ruleStr, true);
+
+            QueryBackend backend = new OSQueryBackend(true, false);
+            List<Object> queries = backend.convertRule(rule);
+            log.info(queries.get(0).toString());
+        }
     }
 }

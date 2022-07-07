@@ -29,7 +29,7 @@ public class SigmaCIDRExpression implements SigmaType {
             return false;
         }
 
-        String values[] = cidr.split("/");
+        String[] values = cidr.split("/");
         Pattern ipv4Pattern = Pattern
                 .compile("(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])");
         Matcher mm = ipv4Pattern.matcher(values[0]);
@@ -37,7 +37,7 @@ public class SigmaCIDRExpression implements SigmaType {
             return false;
         }
         if (values.length >= 2) {
-            int prefix = Integer.valueOf(values[1]);
+            int prefix = Integer.parseInt(values[1]);
             if ((prefix < 0) || (prefix > 32)) {
                 return false;
             }

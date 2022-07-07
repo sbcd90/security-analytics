@@ -73,6 +73,7 @@ public class SigmaRule {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected static SigmaRule fromDict(Map<String, Object> rule, boolean collectErrors) throws SigmaError {
         List<SigmaError> errors = new ArrayList<>();
 

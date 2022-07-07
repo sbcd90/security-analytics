@@ -16,7 +16,6 @@ public class ConditionValueExpression  extends ConditionItem {
     private SigmaType value;
 
     private Either<ConditionItem, SigmaDetectionItem> parent;
-    private boolean operator;
 
     public ConditionValueExpression(SigmaType value) {
         super(1, false, Collections.emptyList());

@@ -4,7 +4,6 @@
  */
 package org.opensearch.securityanalytics.rules.modifiers;
 
-
 import org.opensearch.securityanalytics.rules.objects.SigmaDetectionItem;
 import org.opensearch.securityanalytics.rules.types.SigmaCompareExpression;
 

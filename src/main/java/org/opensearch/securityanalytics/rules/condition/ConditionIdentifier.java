@@ -10,7 +10,6 @@ import org.opensearch.securityanalytics.rules.objects.SigmaDetections;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ConditionIdentifier extends ConditionItem {

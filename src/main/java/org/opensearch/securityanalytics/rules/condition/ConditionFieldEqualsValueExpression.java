@@ -17,7 +17,6 @@ public class ConditionFieldEqualsValueExpression extends ConditionItem {
     private SigmaType value;
 
     private Either<ConditionItem, SigmaDetectionItem> parent;
-    private boolean operator;
 
     public ConditionFieldEqualsValueExpression(String field, SigmaType value) {
         super(2, false, Collections.emptyList());

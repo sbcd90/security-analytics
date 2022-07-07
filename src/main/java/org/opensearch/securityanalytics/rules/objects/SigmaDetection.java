@@ -4,14 +4,22 @@
  */
 package org.opensearch.securityanalytics.rules.objects;
 
-import org.opensearch.securityanalytics.rules.condition.*;
-import org.opensearch.securityanalytics.rules.exceptions.*;
+import org.opensearch.securityanalytics.rules.condition.ConditionAND;
+import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
+import org.opensearch.securityanalytics.rules.condition.ConditionItem;
+import org.opensearch.securityanalytics.rules.condition.ConditionOR;
+import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaDetectionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaModifierError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaRegularExpressionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class SigmaDetection {
 
@@ -19,7 +27,6 @@ public class SigmaDetection {
     private Either<Class<ConditionAND>, Class<ConditionOR>> itemLinking;
 
     private Either<ConditionItem, SigmaDetection> parent;
-    private boolean operator;
 
     public SigmaDetection(List<Either<SigmaDetectionItem, SigmaDetection>> detectionItems,
                           Either<Class<ConditionAND>, Class<ConditionOR>> itemLinking) throws SigmaDetectionError {
@@ -47,6 +54,7 @@ public class SigmaDetection {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected static SigmaDetection fromDefinition(Object definition) throws SigmaModifierError, SigmaDetectionError, SigmaValueError, SigmaRegularExpressionError {
         List<Either<SigmaDetectionItem, SigmaDetection>> detectionItems = new ArrayList<>();
         if (definition instanceof Map) {

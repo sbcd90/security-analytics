@@ -4,7 +4,11 @@
  */
 package org.opensearch.securityanalytics.rules.objects;
 
-import org.opensearch.securityanalytics.rules.condition.*;
+import org.opensearch.securityanalytics.rules.condition.ConditionAND;
+import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
+import org.opensearch.securityanalytics.rules.condition.ConditionItem;
+import org.opensearch.securityanalytics.rules.condition.ConditionOR;
+import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaModifierError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaRegularExpressionError;
@@ -39,7 +43,6 @@ public class SigmaDetectionItem {
     private boolean autoModifiers;
 
     private SigmaDetection parent;
-    private boolean operator;
 
     public SigmaDetectionItem(String field, List<Class<? extends SigmaModifier>> modifiers, List<SigmaType> value,
                               Either<Class<ConditionAND>, Class<ConditionOR>> valueLinking, SigmaType originalValue, boolean autoModifiers) throws SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {

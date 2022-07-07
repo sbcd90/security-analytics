@@ -12,7 +12,12 @@ import org.opensearch.securityanalytics.rules.condition.ConditionOR;
 import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.condition.ConditionType;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
-import org.opensearch.securityanalytics.rules.types.*;
+import org.opensearch.securityanalytics.rules.types.SigmaBool;
+import org.opensearch.securityanalytics.rules.types.SigmaCIDRExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaCompareExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaExpansion;
+import org.opensearch.securityanalytics.rules.types.SigmaRegularExpression;
+import org.opensearch.securityanalytics.rules.types.SigmaString;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
 import org.apache.commons.lang3.NotImplementedException;
@@ -20,6 +25,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 
 public class OSQueryBackend extends QueryBackend {
@@ -58,7 +64,17 @@ public class OSQueryBackend extends QueryBackend {
 
     private String unboundValueNumExpression;
 
+    private String unboundReExpression;
+
+    private String compareOpExpression;
+
     private static final String groupExpression = "(%s)";
+    private static final Map<String, String> compareOperators = Map.of(
+            SigmaCompareExpression.CompareOperators.GT, "gt",
+            SigmaCompareExpression.CompareOperators.GTE, "gte",
+            SigmaCompareExpression.CompareOperators.LT, "lt",
+            SigmaCompareExpression.CompareOperators.LTE, "lte"
+    );
 
     private static final List<Class<?>> precedence = Arrays.asList(ConditionNOT.class, ConditionAND.class, ConditionOR.class);
 
@@ -81,6 +97,8 @@ public class OSQueryBackend extends QueryBackend {
         this.fieldNullExpression = "\"%s\" : null";
         this.unboundValueStrExpression = "\"_\" : \"%s\"";
         this.unboundValueNumExpression = "\"_\" : %s";
+        this.unboundReExpression = "\"_\" : \"%s\"";
+        this.compareOpExpression = "\"%s\" \"%s\" %s";
     }
 
     @Override
@@ -265,17 +283,18 @@ public class OSQueryBackend extends QueryBackend {
         return String.format(Locale.getDefault(), this.reExpression, this.getMappedField(condition.getField()), convertValueRe((SigmaRegularExpression) condition.getValue()));
     }
 
-/*    @Override
+    @Override
     public Object convertConditionFieldEqValCidr(ConditionFieldEqualsValueExpression condition) {
-        return String.format(this.cidrExpression, this.getMappedField(condition.getField()), convertValueCidr((SigmaCIDRExpression) condition.getValue()));
+        return String.format(Locale.getDefault(), this.cidrExpression, this.getMappedField(condition.getField()), convertValueCidr((SigmaCIDRExpression) condition.getValue()));
     }
 
     @Override
     public Object convertConditionFieldEqValOpVal(ConditionFieldEqualsValueExpression condition) {
-        return null;
+        return String.format(Locale.getDefault(), this.compareOpExpression, this.getMappedField(condition.getField()),
+                compareOperators.get(((SigmaCompareExpression) condition.getValue()).getOp()), ((SigmaCompareExpression) condition.getValue()).getNumber().toString());
     }
 
-    @Override
+/*    @Override
     public Object convertConditionFieldEqValNull(ConditionFieldEqualsValueExpression condition) {
         return null;
     }
@@ -295,12 +314,12 @@ public class OSQueryBackend extends QueryBackend {
         return String.format(Locale.getDefault(), this.unboundValueNumExpression, condition.getValue().toString());
     }
 
-/*    @Override
+    @Override
     public Object convertConditionValRe(ConditionValueExpression condition) {
-        return null;
+        return String.format(Locale.getDefault(), this.unboundReExpression, convertValueRe((SigmaRegularExpression) condition.getValue()));
     }
 
-    @Override
+/*    @Override
     public Object convertConditionValQueryExpr(ConditionValueExpression condition) {
         return null;
     }*/
@@ -330,9 +349,9 @@ public class OSQueryBackend extends QueryBackend {
         return re.escape(this.reEscape, this.reEscapeChar);
     }
 
-/*    private Object convertValueCidr(SigmaCIDRExpression ip) {
+    private Object convertValueCidr(SigmaCIDRExpression ip) {
         return ip.convert();
-    }*/
+    }
 
     private String getMappedField(String field) {
         if (this.enableFieldMappings && this.fieldMappings.containsKey(field)) {

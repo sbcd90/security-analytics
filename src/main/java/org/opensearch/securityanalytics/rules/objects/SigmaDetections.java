@@ -4,9 +4,16 @@
  */
 package org.opensearch.securityanalytics.rules.objects;
 
-import org.opensearch.securityanalytics.rules.exceptions.*;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaDetectionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaModifierError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaRegularExpressionError;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class SigmaDetections {
 
@@ -30,6 +37,7 @@ public class SigmaDetections {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected static SigmaDetections fromDict(Map<String, Object> detectionMap) throws SigmaConditionError, SigmaDetectionError, SigmaModifierError, SigmaValueError, SigmaRegularExpressionError {
         List<String> conditionList = new ArrayList<>();
         if (detectionMap.containsKey("condition") && detectionMap.get("condition") instanceof List) {

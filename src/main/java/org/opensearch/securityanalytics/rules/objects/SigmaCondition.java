@@ -6,7 +6,14 @@ package org.opensearch.securityanalytics.rules.objects;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.opensearch.securityanalytics.rules.condition.*;
+import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
+import org.opensearch.securityanalytics.rules.condition.ConditionIdentifier;
+import org.opensearch.securityanalytics.rules.condition.ConditionItem;
+import org.opensearch.securityanalytics.rules.condition.ConditionLexer;
+import org.opensearch.securityanalytics.rules.condition.ConditionParser;
+import org.opensearch.securityanalytics.rules.condition.ConditionSelector;
+import org.opensearch.securityanalytics.rules.condition.ConditionTraverseVisitor;
+import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
 import org.opensearch.securityanalytics.rules.utils.AnyOneOf;
 import org.opensearch.securityanalytics.rules.utils.Either;
@@ -50,21 +57,6 @@ public class SigmaCondition {
         Either<ConditionItem, String> itemOrCondition = conditionVisitor.visit(parser.start());
         if (itemOrCondition.isLeft()) {
             return itemOrCondition.getLeft();
-/*            List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(0))));
-            tokens.remove(0);
-            ConditionItem conditionItem = ConditionNOT.fromParsed(tokens);
-            conditionItem.setArgs(convertArgs(conditionItem.getArgs()));
-            return conditionItem;
-        } else if (condition.contains(operators.get(1))) {
-            List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(1))));
-            ConditionItem conditionItem = ConditionAND.fromParsed(tokens);
-            conditionItem.setArgs(convertArgs(conditionItem.getArgs()));
-            return conditionItem;
-        } else if (condition.contains(operators.get(2))) {
-            List<String> tokens = new java.util.ArrayList<>(List.of(condition.split(operators.get(2))));
-            ConditionItem conditionItem = ConditionOR.fromParsed(tokens);
-            conditionItem.setArgs(convertArgs(conditionItem.getArgs()));
-            return conditionItem;*/
         } else {
             return Objects.requireNonNull(parsed(condition)).isLeft()? Objects.requireNonNull(parsed(condition)).getLeft():
                     ((Objects.requireNonNull(parsed(condition))).isMiddle()? Objects.requireNonNull(parsed(condition)).getMiddle():
