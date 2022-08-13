@@ -56,9 +56,9 @@ public class SigmaCondition {
     private AggregationTraverseVisitor aggVisitor;
 
     public SigmaCondition(String condition, SigmaDetections detections) {
-        if (condition.contains("|")) {
-            this.condition = condition.split("\\|")[0];
-            this.aggregation = condition.split("\\|")[1];
+        if (condition.contains(" | ")) {
+            this.condition = condition.split(" \\| ")[0];
+            this.aggregation = condition.split(" \\| ")[1];
         } else {
             this.condition = condition;
             this.aggregation = "";
@@ -88,7 +88,8 @@ public class SigmaCondition {
 
         AggregationItem parsedAggItem = null;
         if (!this.aggregation.isEmpty()) {
-            parsedAggItem = aggVisitor.visit(aggParser.comparison_expr());
+            aggVisitor.visit(aggParser.comparison_expr());
+            parsedAggItem = aggVisitor.getAggregationItem();
         }
         return Pair.of(parsedConditionItem, parsedAggItem);
     }

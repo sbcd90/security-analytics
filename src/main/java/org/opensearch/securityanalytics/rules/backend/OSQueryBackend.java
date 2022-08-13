@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics.rules.backend;
 
+import org.opensearch.securityanalytics.rules.aggregation.AggregationItem;
 import org.opensearch.securityanalytics.rules.condition.ConditionAND;
 import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
 import org.opensearch.securityanalytics.rules.condition.ConditionItem;
@@ -18,6 +19,7 @@ import org.opensearch.securityanalytics.rules.utils.Either;
 import org.apache.commons.lang3.NotImplementedException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.*;
 
 public class OSQueryBackend extends QueryBackend {
@@ -68,6 +70,12 @@ public class OSQueryBackend extends QueryBackend {
 
     private int valExpCount;
 
+    private String aggQuery;
+
+    private String aggCountQuery;
+
+    private String bucketTriggerQuery;
+
     private static final String groupExpression = "(%s)";
     private static final Map<String, String> compareOperators = Map.of(
             SigmaCompareExpression.CompareOperators.GT, "gt",
@@ -103,6 +111,9 @@ public class OSQueryBackend extends QueryBackend {
         this.unboundReExpression = "%s: /%s/";
         this.compareOpExpression = "\"%s\" \"%s\" %s";
         this.valExpCount = 0;
+        this.aggQuery = "\"aggs\":{\"%s\":{\"terms\":{\"field\":\"%s\"},\"aggs\":{\"%s\":{\"%s\":{\"field\":\"%s\"}}}}}";
+        this.aggCountQuery = "\"aggs\":{\"%s\":{\"terms\":{\"field\":\"%s\"}}}";
+        this.bucketTriggerQuery = "{\"buckets_path\":{\"%s\":\"%s\"},\"parent_bucket_path\":\"%s\",\"script\":{\"source\":\"params.%s %s %s\",\"lang\":\"painless\"}}";
     }
 
     @Override
@@ -368,6 +379,23 @@ public class OSQueryBackend extends QueryBackend {
         return null;
     }*/
 
+    @Override
+    public Object convertAggregation(AggregationItem aggregation) {
+        String fmtAggQuery;
+        String fmtBucketTriggerQuery;
+        if (aggregation.getAggFunction().equals("count")) {
+            fmtAggQuery = String.format(Locale.getDefault(), aggCountQuery, "result_agg", aggregation.getGroupByField());
+            fmtBucketTriggerQuery = String.format(Locale.getDefault(), bucketTriggerQuery, "_cnt", "_cnt", "result_agg", "_cnt", aggregation.getCompOperator(), aggregation.getThreshold());
+        } else {
+            fmtAggQuery = String.format(Locale.getDefault(), aggQuery, "result_agg", aggregation.getGroupByField(), aggregation.getAggField(), aggregation.getAggFunction(), aggregation.getAggField());
+            fmtBucketTriggerQuery = String.format(Locale.getDefault(), bucketTriggerQuery, aggregation.getAggField(), aggregation.getAggField(), "result_agg", aggregation.getAggField(), aggregation.getCompOperator(), aggregation.getThreshold());
+        }
+        AggregationQueries aggQueries = new AggregationQueries();
+        aggQueries.setAggQuery(fmtAggQuery);
+        aggQueries.setBucketTriggerQuery(fmtBucketTriggerQuery);
+        return aggQueries;
+    }
+
     private boolean comparePrecedence(ConditionType outer, ConditionType inner) {
         Class<?> outerClass = outer.getClazz();
 
@@ -416,5 +444,28 @@ public class OSQueryBackend extends QueryBackend {
         String field = "_" + valExpCount;
         valExpCount++;
         return field;
+    }
+
+    public static class AggregationQueries implements Serializable {
+
+        private String aggQuery;
+
+        private String bucketTriggerQuery;
+
+        public void setAggQuery(String aggQuery) {
+            this.aggQuery = aggQuery;
+        }
+
+        public String getAggQuery() {
+            return aggQuery;
+        }
+
+        public void setBucketTriggerQuery(String bucketTriggerQuery) {
+            this.bucketTriggerQuery = bucketTriggerQuery;
+        }
+
+        public String getBucketTriggerQuery() {
+            return bucketTriggerQuery;
+        }
     }
 }

@@ -20,7 +20,7 @@ public class AggregationTraverseVisitor extends AggregationBaseVisitor<Aggregati
         if (ctx.comp_operator() != null) {
             this.aggregationItem.setCompOperator(ctx.comp_operator().getText());
         }
-        return this.aggregationItem;
+        return super.visitComparisonExpressionWithOperator(ctx);
     }
 
     @Override
@@ -28,7 +28,7 @@ public class AggregationTraverseVisitor extends AggregationBaseVisitor<Aggregati
         if (ctx.agg_operator() != null) {
             this.aggregationItem.setAggFunction(ctx.agg_operator().getText());
         }
-        return this.aggregationItem;
+        return super.visitAggExpressionParens(ctx);
     }
 
     @Override
@@ -36,7 +36,7 @@ public class AggregationTraverseVisitor extends AggregationBaseVisitor<Aggregati
         if (ctx.DECIMAL() != null) {
             this.aggregationItem.setThreshold(Double.valueOf(ctx.DECIMAL().getText()));
         }
-        return this.aggregationItem;
+        return super.visitNumericConst(ctx);
     }
 
     @Override
@@ -44,6 +44,18 @@ public class AggregationTraverseVisitor extends AggregationBaseVisitor<Aggregati
         if (ctx.IDENTIFIER() != null) {
             this.aggregationItem.setAggField(ctx.IDENTIFIER().getText());
         }
-        return this.aggregationItem;
+        return super.visitNumericVariable(ctx);
+    }
+
+    @Override
+    public AggregationItem visitGroupby_expr(AggregationParser.Groupby_exprContext ctx) {
+        if(ctx.IDENTIFIER() != null) {
+            this.aggregationItem.setGroupByField(ctx.IDENTIFIER().getText());
+        }
+        return super.visitGroupby_expr(ctx);
+    }
+
+    public AggregationItem getAggregationItem() {
+        return aggregationItem;
     }
 }

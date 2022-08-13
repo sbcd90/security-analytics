@@ -98,6 +98,9 @@ public abstract class QueryBackend {
                     query = this.convertCondition(new ConditionType(Either.right(Either.right((ConditionValueExpression) conditionItem))));
                 }
                 queries.add(query);
+                if (aggItem != null) {
+                    queries.add(convertAggregation(aggItem));
+                }
             }
 
             this.queryFields.putAll(this.ruleQueryFields);
@@ -256,4 +259,6 @@ public abstract class QueryBackend {
     public abstract Object convertConditionValRe(ConditionValueExpression condition);
 
 /*   public abstract Object convertConditionValQueryExpr(ConditionValueExpression condition);*/
+
+    public abstract Object convertAggregation(AggregationItem aggregation);
 }
