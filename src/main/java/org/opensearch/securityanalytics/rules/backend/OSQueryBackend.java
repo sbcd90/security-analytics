@@ -285,7 +285,7 @@ public class OSQueryBackend extends QueryBackend {
         String expr = "%s" + this.eqToken + " " + (containsWildcard? this.reQuote: this.strQuote) + "%s" + (containsWildcard? this.reQuote: this.strQuote);
 
         String field = getFinalField(condition.getField());
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         return String.format(Locale.getDefault(), expr, field, this.convertValueStr(value));
     }
 
@@ -309,21 +309,21 @@ public class OSQueryBackend extends QueryBackend {
 
     public Object convertConditionFieldEqValNull(ConditionFieldEqualsValueExpression condition) {
         String field = getFinalField(condition.getField());
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         return String.format(Locale.getDefault(), this.fieldNullExpression, field);
     }
 
     @Override
     public Object convertConditionFieldEqValRe(ConditionFieldEqualsValueExpression condition) {
         String field = getFinalField(condition.getField());
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         return String.format(Locale.getDefault(), this.reExpression, field, convertValueRe((SigmaRegularExpression) condition.getValue()));
     }
 
     @Override
     public Object convertConditionFieldEqValCidr(ConditionFieldEqualsValueExpression condition) {
         String field = getFinalField(condition.getField());
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         return String.format(Locale.getDefault(), this.cidrExpression, field, convertValueCidr((SigmaCIDRExpression) condition.getValue()));
     }
 
@@ -350,7 +350,7 @@ public class OSQueryBackend extends QueryBackend {
         SigmaString value = (SigmaString) condition.getValue();
 
         String field = getFinalValueField();
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         boolean containsWildcard = value.containsWildcard();
         return String.format(Locale.getDefault(), (containsWildcard? this.unboundWildcardExpression: this.unboundValueStrExpression), field, this.convertValueStr((SigmaString) condition.getValue()));
     }
@@ -368,7 +368,7 @@ public class OSQueryBackend extends QueryBackend {
     @Override
     public Object convertConditionValRe(ConditionValueExpression condition) {
         String field = getFinalValueField();
-        ruleQueryFields.put(field, Map.of("type", "text", "analyzer", "rule_analyzer"));
+        ruleQueryFields.put(field, Map.of("type", "text"));
         return String.format(Locale.getDefault(), this.unboundReExpression, field, convertValueRe((SigmaRegularExpression) condition.getValue()));
     }
 

@@ -4,6 +4,8 @@
  */
 package org.opensearch.securityanalytics.transport;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,7 +17,11 @@ import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.Client;
+import org.opensearch.client.Request;
+import org.opensearch.client.Response;
+import org.opensearch.client.RestClient;
 import org.opensearch.common.inject.Inject;
+import org.opensearch.commons.rest.SecureRestClientBuilder;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.securityanalytics.action.IndexRulesAction;
 import org.opensearch.securityanalytics.action.IndexRulesRequest;
@@ -144,7 +150,7 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         Pair<String, List<Object>> logIndexToQueries = Pair.of(logIndexToRule.getKey(), queries);
         Pair<String, Map<String, Object>> logIndexToQueryFields = Pair.of(logIndexToRule.getKey(), backend.getQueryFields());
 
-        asyncAction.start(logIndexToQueryFields, rulesCount);
+        asyncAction.start(logIndexToQueryFields, logIndexToQueries, rulesCount);
     }
 
     private void loadQueries(String[] paths, String ruleTopic, AsyncIndexRulesAction asyncAction) throws IOException, SigmaError, ExecutionException, InterruptedException {
@@ -171,11 +177,40 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         return queries;
     }
 
-    private void createAlertingMonitorFromQueries(Map<String, List<Object>> logIndexToQueries) {
+    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries) {
         try {
+            String docLevelMonitor = String.format(Locale.getDefault(), "{\"type\":\"monitor\",\"monitor_type\":\"doc_level_monitor\",\"name\":\"security_analytics_monitor\",\"enabled\":true,\"createdBy\":\"chip\",\"schedule\":{\"period\":{\"interval\":1,\"unit\":\"MINUTES\"}},\"inputs\":[{\"doc_level_input\":{\"description\":\"security_analytics_monitor\",\"indices\":[\"%s\"],\"queries\":%s}}],\"triggers\":[]}",
+                    logIndexToQueries.getKey(), getDocLevelQueriesFromRules(logIndexToQueries.getValue()));
+            log.info("hit here1-" + docLevelMonitor);
+
+            SecureRestClientBuilder clientBuilder = new SecureRestClientBuilder("127.0.0.1", 9200, false, "admin", "admin");
+            RestClient restClient = clientBuilder.build();
+
+            Request request = new Request("POST", "/_plugins/_alerting/monitors");
+            request.setJsonEntity(docLevelMonitor);
+            Response response = restClient.performRequest(request);
+
+            log.info("hit here2-" + new String(response.getEntity().getContent().readAllBytes(), Charset.defaultCharset()));
         } catch (Exception ex) {
             log.info(ex.getMessage());
         }
+    }
+
+    private String getDocLevelQueriesFromRules(List<Object> queries) throws JsonProcessingException {
+        List<Map<String, Object>> docLevelQueries = new ArrayList<>();
+
+        int idx = 1;
+        for (Object query: queries) {
+            Map<String, Object> docLevelQuery = new HashMap<>();
+            docLevelQuery.put("id", String.valueOf(idx));
+            docLevelQuery.put("name", String.valueOf(idx));
+            docLevelQuery.put("severity", String.valueOf(5));
+            docLevelQuery.put("query", query.toString());
+
+            docLevelQueries.add(docLevelQuery);
+            ++idx;
+        }
+        return new ObjectMapper().writeValueAsString(docLevelQueries);
     }
 
     class AsyncIndexRulesAction {
@@ -194,15 +229,17 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
             this.response = new AtomicReference<>();
         }
 
-        void start(Pair<String, Map<String, Object>> logIndexToQueryFields, long rulesCount) {
+        void start(Pair<String, Map<String, Object>> logIndexToQueryFields, Pair<String, List<Object>> logIndexToQueries, long rulesCount) {
             CreateIndexRequest request = ruleTopicIndices.prepareRuleTopicTemplateIndex(logIndexToQueryFields);
 
             if (request != null) {
                 client.admin().indices().create(request, new ActionListener<>() {
                     @Override
                     public void onResponse(CreateIndexResponse response) {
-                        try {
-                            client.admin().indices().putMapping(
+//                        try {
+                            createAlertingMonitorFromQueries(logIndexToQueries);
+                        onOperation(response, rulesCount);
+/*                            client.admin().indices().putMapping(
                                     mapperApplier.createMappingAction(logIndexToQueryFields.getKey(), logIndexToQueryFields.getKey()),
                                     new ActionListener<>() {
                                         @Override
@@ -217,7 +254,7 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
                                     });
                         } catch (IOException e) {
                             onFailures(e);
-                        }
+                        }*/
                     }
 
                     @Override
@@ -230,7 +267,7 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
             }
         }
 
-        private void onOperation(AcknowledgedResponse response, long rulesCount) {
+        private void onOperation(CreateIndexResponse response, long rulesCount) {
             this.response.set(response);
             if (counter.compareAndSet(false, true)) {
                 finishHim(rulesCount);

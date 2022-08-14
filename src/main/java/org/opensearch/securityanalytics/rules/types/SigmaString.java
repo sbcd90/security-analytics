@@ -216,7 +216,7 @@ public class SigmaString implements SigmaType {
                 }
             }
         }
-        return s.toString();
+        return s.toString().replace(" ", "_ws_");
     }
 
     public SigmaString replaceWithPlaceholder(Pattern regex, String placeholderName) {
@@ -363,6 +363,6 @@ public class SigmaString implements SigmaType {
                 sb.append(sOptElem.getMiddle());
             }
         }
-        return sb.toString();
+        return sb.toString().replace(" ", "_ws_");
     }
 }

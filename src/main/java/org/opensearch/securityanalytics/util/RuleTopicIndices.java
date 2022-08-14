@@ -34,7 +34,7 @@ public class RuleTopicIndices {
         String ruleTopic = ruleTopicToField.getKey();
 
         Map<String, Object> ruleFields = ruleTopicToField.getValue();
-        ruleFields.put("query", Collections.singletonMap("type", "percolator_ext"));
+//        ruleFields.put("query", Collections.singletonMap("type", "percolator_ext"));
 
         if (!ruleTopicIndexExists(ruleTopic)) {
             return new CreateIndexRequest(ruleTopic)
@@ -42,31 +42,7 @@ public class RuleTopicIndices {
                                 Collections.singletonMap("properties", ruleFields)
                         )
                 )
-                .settings(Settings.builder().loadFromSource(
-                        "{\n" +
-                                "  \"index\": {\n" +
-                                "    \"hidden\": true\n" +
-                                "  },\n" +
-                                "  \"analysis\": {\n" +
-                                "    \"analyzer\": {\n" +
-                                "      \"rule_analyzer\": {\n" +
-                                "        \"tokenizer\": \"keyword\",\n" +
-                                "        \"char_filter\": [\n" +
-                                "          \"rule_ws_filter\"\n" +
-                                "        ]\n" +
-                                "      }\n" +
-                                "    },\n" +
-                                "    \"char_filter\": {\n" +
-                                "      \"rule_ws_filter\": {\n" +
-                                "        \"type\": \"pattern_replace\",\n" +
-                                "        \"pattern\": \"(_ws_)\",\n" +
-                                "        \"replacement\": \" \"\n" +
-                                "      }\n" +
-                                "    }\n" +
-                                "  }\n" +
-                                "}",
-                        XContentType.JSON
-                ));
+                .settings(Settings.EMPTY);
         }
         return null;
     }
