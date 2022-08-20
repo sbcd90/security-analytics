@@ -12,12 +12,11 @@ import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.rest.*;
 import org.opensearch.rest.action.RestResponseListener;
 import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
-import org.opensearch.securityanalytics.action.IndexRulesAction;
-import org.opensearch.securityanalytics.action.IndexRulesRequest;
-import org.opensearch.securityanalytics.action.IndexRulesResponse;
+import org.opensearch.securityanalytics.action.IndexDetectorAction;
+import org.opensearch.securityanalytics.action.IndexDetectorRequest;
+import org.opensearch.securityanalytics.action.IndexDetectorResponse;
 import org.opensearch.securityanalytics.util.RestHandlerUtils;
 
-import java.io.IOException;
 import java.util.*;
 
 public class RestIndexRulesAction extends BaseRestHandler {
@@ -55,14 +54,14 @@ public class RestIndexRulesAction extends BaseRestHandler {
             throw new IllegalArgumentException(RestHandlerUtils.RULE_TOPIC + " is empty");
         }
 
-        IndexRulesRequest indexRulesRequest = new IndexRulesRequest(refreshPolicy, ruleTopic, rule, request.method());
-        return channel -> client.execute(IndexRulesAction.INSTANCE, indexRulesRequest, indexRulesResponse(channel, request.method()));
+        IndexDetectorRequest indexRulesRequest = new IndexDetectorRequest(refreshPolicy, ruleTopic, rule, request.method());
+        return channel -> client.execute(IndexDetectorAction.INSTANCE, indexRulesRequest, indexRulesResponse(channel, request.method()));
     }
 
-    private RestResponseListener<IndexRulesResponse> indexRulesResponse(RestChannel channel, RestRequest.Method restMethod) {
+    private RestResponseListener<IndexDetectorResponse> indexRulesResponse(RestChannel channel, RestRequest.Method restMethod) {
         return new RestResponseListener<>(channel) {
             @Override
-            public RestResponse buildResponse(IndexRulesResponse response) throws Exception {
+            public RestResponse buildResponse(IndexDetectorResponse response) throws Exception {
                 RestStatus returnStatus = RestStatus.CREATED;
 
                 return new BytesRestResponse(returnStatus, response.toXContent(channel.newBuilder(), ToXContent.EMPTY_PARAMS));

@@ -7,26 +7,28 @@ package org.opensearch.securityanalytics.transport;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRunnable;
-import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.rest.RestStatus;
-import org.opensearch.securityanalytics.action.IndexRulesAction;
-import org.opensearch.securityanalytics.action.IndexRulesRequest;
-import org.opensearch.securityanalytics.action.IndexRulesResponse;
+import org.opensearch.securityanalytics.action.IndexDetectorAction;
+import org.opensearch.securityanalytics.action.IndexDetectorRequest;
+import org.opensearch.securityanalytics.action.IndexDetectorResponse;
 import org.opensearch.securityanalytics.mappings.MapperApplier;
+import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.rules.backend.OSQueryBackend;
 import org.opensearch.securityanalytics.rules.backend.QueryBackend;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaError;
 import org.opensearch.securityanalytics.rules.objects.SigmaRule;
-import org.opensearch.securityanalytics.util.RestHandlerUtils;
-import org.opensearch.securityanalytics.util.RuleTopicIndices;
+import org.opensearch.securityanalytics.util.DetectorIndices;
+import org.opensearch.securityanalytics.util.IndexUtils;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
@@ -40,64 +42,53 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class TransportIndexRulesAction extends HandledTransportAction<IndexRulesRequest, IndexRulesResponse> {
+public class TransportIndexRulesAction extends HandledTransportAction<IndexDetectorRequest, IndexDetectorResponse> {
 
     private static final Logger log = LogManager.getLogger(TransportIndexRulesAction.class);
 
     private final Client client;
 
-    private final RuleTopicIndices ruleTopicIndices;
+    private final DetectorIndices detectorIndices;
 
     private final MapperApplier mapperApplier;
+
+    private final ClusterService clusterService;
 
     private final ThreadPool threadPool;
 
     private static FileSystem fs;
 
     @Inject
-    public TransportIndexRulesAction(TransportService transportService, Client client, ActionFilters actionFilters, RuleTopicIndices ruleTopicIndices, MapperApplier mapperApplier) {
-        super(IndexRulesAction.NAME, transportService, actionFilters, IndexRulesRequest::new);
+    public TransportIndexRulesAction(TransportService transportService, Client client, ActionFilters actionFilters, DetectorIndices detectorIndices, MapperApplier mapperApplier, ClusterService clusterService) {
+        super(IndexDetectorAction.NAME, transportService, actionFilters, IndexDetectorRequest::new);
         this.client = client;
-        this.ruleTopicIndices = ruleTopicIndices;
+        this.detectorIndices = detectorIndices;
         this.mapperApplier = mapperApplier;
-        this.threadPool = this.ruleTopicIndices.getThreadPool();
+        this.clusterService = clusterService;
+        this.threadPool = this.detectorIndices.getThreadPool();
     }
 
     @Override
-    protected void doExecute(Task task, IndexRulesRequest request, ActionListener<IndexRulesResponse> listener) {
+    protected void doExecute(Task task, IndexDetectorRequest request, ActionListener<IndexDetectorResponse> listener) {
         AsyncIndexRulesAction asyncAction = new AsyncIndexRulesAction(task, request, listener);
-        if (request.getRule().isEmpty()) {
-            importRules(listener, request, asyncAction);
+    }
+
+    private void importRules(IndexDetectorRequest request) throws URISyntaxException, IOException, SigmaError, InterruptedException, ExecutionException {
+        final Detector detector = request.getDetector();
+
+        final String ruleTopic = detector.getDetectorType();
+        final String url = Objects.requireNonNull(getClass().getClassLoader().getResource("rules/")).toURI().toString();
+
+        if (url.contains("!")) {
+            final String[] paths = url.split("!");
+            loadQueries(paths, ruleTopic);
         } else {
-            importRule(listener, request, asyncAction);
-        }
-    }
-
-    private void importRule(ActionListener<IndexRulesResponse> actionListener, IndexRulesRequest request, AsyncIndexRulesAction asyncAction) {
-        try {
-            ingestQueries(Pair.of(request.getRuleTopic(), List.of(request.getRule())), asyncAction);
-        } catch (IOException | SigmaError | InterruptedException | ExecutionException ex) {
-            actionListener.onFailure(ex);
-        }
-    }
-
-    private void importRules(ActionListener<IndexRulesResponse> actionListener, IndexRulesRequest request, AsyncIndexRulesAction asyncAction) {
-        try {
-            final String ruleTopic = request.getRuleTopic();
-            final String url = Objects.requireNonNull(getClass().getClassLoader().getResource("rules/")).toURI().toString();
-
-            if (url.contains("!")) {
-                final String[] paths = url.split("!");
-                loadQueries(paths, ruleTopic, asyncAction);
-            } else {
-                Path path = Path.of(url);
-                loadQueries(path, ruleTopic, asyncAction);
-            }
-        } catch (URISyntaxException | IOException | SigmaError | InterruptedException | ExecutionException ex) {
-            actionListener.onFailure(ex);
+            Path path = Path.of(url);
+            loadQueries(path, ruleTopic);
         }
     }
 
@@ -119,23 +110,23 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         return rules;
     }
 
-    private void loadQueries(Path path, String ruleTopic, AsyncIndexRulesAction asyncAction) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(Path path, String ruleTopic) throws IOException, SigmaError, ExecutionException, InterruptedException {
         Stream<Path> folder = Files.list(path);
         folder = folder.filter(pathElem -> pathElem.endsWith(ruleTopic));
 
         List<Path> folderPaths = folder.collect(Collectors.toList());
         if (folderPaths.size() == 0) {
-            throw new IllegalArgumentException(String.format(Locale.getDefault(), "%s %s not found", RestHandlerUtils.RULE_TOPIC, ruleTopic));
+            throw new IllegalArgumentException(String.format(Locale.getDefault(), "Detector Type %s not found", ruleTopic));
         }
         Path folderPath = folderPaths.get(0);
 
         List<String> rules = getRules(List.of(folderPath));
         String logIndex = folderPath.getFileName().toString();
         Pair<String, List<String>> logIndexToRules = Pair.of(logIndex, rules);
-        ingestQueries(logIndexToRules, asyncAction);
+        ingestQueries(logIndexToRules);
     }
 
-    private void ingestQueries(Pair<String, List<String>> logIndexToRule, AsyncIndexRulesAction asyncAction) throws SigmaError, ExecutionException, InterruptedException, IOException {
+    private void ingestQueries(Pair<String, List<String>> logIndexToRule) throws SigmaError, IOException {
         final QueryBackend backend = new OSQueryBackend(true, true);
 
         List<Object> queries = getQueries(backend, logIndexToRule.getValue());
@@ -144,13 +135,13 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         Pair<String, List<Object>> logIndexToQueries = Pair.of(logIndexToRule.getKey(), queries);
         Pair<String, Map<String, Object>> logIndexToQueryFields = Pair.of(logIndexToRule.getKey(), backend.getQueryFields());
 
-        asyncAction.start(logIndexToQueryFields, rulesCount);
+        createAlertingMonitorFromQueries(logIndexToQueries, logIndexToQueryFields);
     }
 
-    private void loadQueries(String[] paths, String ruleTopic, AsyncIndexRulesAction asyncAction) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(String[] paths, String ruleTopic) throws IOException, SigmaError, ExecutionException, InterruptedException {
         getOrCreateFS(paths[0]);
         Path path = fs.getPath(paths[1]);
-        loadQueries(path, ruleTopic, asyncAction);
+        loadQueries(path, ruleTopic);
     }
 
     private static FileSystem getOrCreateFS(String path) throws IOException {
@@ -171,22 +162,42 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         return queries;
     }
 
-    private void createAlertingMonitorFromQueries(Map<String, List<Object>> logIndexToQueries) {
+    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries, Pair<String, Map<String, Object>> logIndexToQueryFields) {
         try {
         } catch (Exception ex) {
             log.info(ex.getMessage());
         }
     }
 
-    class AsyncIndexRulesAction {
-        private final IndexRulesRequest request;
+    private void onCreateMappingsResponse(CreateIndexResponse response) throws IOException {
+        if (response.isAcknowledged()) {
+            log.info(String.format(Locale.getDefault(), "Created %s with mappings.", Detector.DETECTORS_INDEX));
+            IndexUtils.detectorIndexUpdated();
+        } else {
+            log.error(String.format(Locale.getDefault(), "Create %s mappings call not acknowledged.", Detector.DETECTORS_INDEX));
+            throw new OpenSearchStatusException(String.format(Locale.getDefault(), "Create %s mappings call not acknowledged", Detector.DETECTORS_INDEX), RestStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
-        private final ActionListener<IndexRulesResponse> listener;
+    private void onUpdateMappingsResponse(AcknowledgedResponse response) {
+        if (response.isAcknowledged()) {
+            log.info(String.format(Locale.getDefault(), "Updated  %s with mappings.", Detector.DETECTORS_INDEX));
+            IndexUtils.detectorIndexUpdated();
+        } else {
+            log.error(String.format(Locale.getDefault(), "Update %s mappings call not acknowledged.", Detector.DETECTORS_INDEX));
+            throw new OpenSearchStatusException(String.format(Locale.getDefault(), "Update %s mappings call not acknowledged.", Detector.DETECTORS_INDEX), RestStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    class AsyncIndexRulesAction {
+        private final IndexDetectorRequest request;
+
+        private final ActionListener<IndexDetectorResponse> listener;
         private final AtomicReference<Object> response;
         private final AtomicBoolean counter = new AtomicBoolean();
         private final Task task;
 
-        AsyncIndexRulesAction(Task task, IndexRulesRequest request, ActionListener<IndexRulesResponse> listener) {
+        AsyncIndexRulesAction(Task task, IndexDetectorRequest request, ActionListener<IndexDetectorResponse> listener) {
             this.task = task;
             this.request = request;
             this.listener = listener;
@@ -194,39 +205,89 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
             this.response = new AtomicReference<>();
         }
 
-        void start(Pair<String, Map<String, Object>> logIndexToQueryFields, long rulesCount) {
-            CreateIndexRequest request = ruleTopicIndices.prepareRuleTopicTemplateIndex(logIndexToQueryFields);
+        void start() {
+            try {
+                if (!detectorIndices.detectorIndexExists()) {
+                    detectorIndices.initDetectorIndex(new ActionListener<>() {
+                        @Override
+                        public void onResponse(CreateIndexResponse response) {
+                            try {
+                                onCreateMappingsResponse(response);
+                                prepareDetectorIndexing();
+                            } catch (IOException e) {
+                                onFailures(e);
+                            }
+                        }
 
-            if (request != null) {
-                client.admin().indices().create(request, new ActionListener<>() {
-                    @Override
-                    public void onResponse(CreateIndexResponse response) {
-                        try {
-                            client.admin().indices().putMapping(
-                                    mapperApplier.createMappingAction(logIndexToQueryFields.getKey(), logIndexToQueryFields.getKey()),
-                                    new ActionListener<>() {
-                                        @Override
-                                        public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                            onOperation(acknowledgedResponse, rulesCount);
-                                        }
+                        @Override
+                        public void onFailure(Exception e) {
+                            onFailures(e);
+                        }
+                    });
+                } else if (!IndexUtils.detectorIndexUpdated) {
+                    IndexUtils.updateIndexMapping(
+                            Detector.DETECTORS_INDEX,
+                            DetectorIndices.detectorMappings(), clusterService.state(), client.admin().indices(),
+                            new ActionListener<>() {
+                                @Override
+                                public void onResponse(AcknowledgedResponse response) {
+                                    onUpdateMappingsResponse(response);
+                                    try {
+                                        prepareDetectorIndexing();
+                                    } catch (IOException e) {
+                                        onFailures(e);
+                                    }
+                                }
 
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            onFailures(e);
-                                        }
-                                    });
-                        } catch (IOException e) {
+                                @Override
+                                public void onFailure(Exception e) {
+                                    onFailures(e);
+                                }
+                            }
+                    );
+                } else {
+                    prepareDetectorIndexing();
+                }
+            } catch (IOException e) {
+                onFailures(e);
+            }
+        }
+
+        void prepareDetectorIndexing() throws IOException {
+            Detector detector = request.getDetector();
+
+            String ruleTopic = detector.getDetectorType();
+
+            if (!detector.getInputs().isEmpty()) {
+                String logIndex = detector.getInputs().get(0).getIndices().get(0);
+
+                mapperApplier.createMappingAction(logIndex, ruleTopic,
+                    new ActionListener<>() {
+                        @Override
+                        public void onResponse(AcknowledgedResponse response) {
+                            if (response.isAcknowledged()) {
+                                log.info(String.format(Locale.getDefault(), "Updated  %s with mappings.", logIndex));
+
+                                /**
+                                 * pass also ActionListener
+                                 */
+                                try {
+                                    importRules(request);
+                                } catch (URISyntaxException | IOException | SigmaError | InterruptedException | ExecutionException e) {
+                                    onFailures(e);
+                                }
+                            } else {
+                                log.error(String.format(Locale.getDefault(), "Update %s mappings call not acknowledged.", logIndex));
+                                onFailures(new OpenSearchStatusException(String.format(Locale.getDefault(), "Update %s mappings call not acknowledged.", logIndex), RestStatus.INTERNAL_SERVER_ERROR));
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
                             onFailures(e);
                         }
                     }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        onFailures(e);
-                    }
-                });
-            } else {
-                onOperation(null, 0);
+                );
             }
         }
 
@@ -244,7 +305,7 @@ public class TransportIndexRulesAction extends HandledTransportAction<IndexRules
         }
 
         private void finishHim(long ruleCount) {
-            threadPool.executor(ThreadPool.Names.GENERIC).execute(ActionRunnable.supply(listener, () -> new IndexRulesResponse(ruleCount, RestStatus.CREATED)));
+            threadPool.executor(ThreadPool.Names.GENERIC).execute(ActionRunnable.supply(listener, () -> new IndexDetectorResponse(ruleCount, RestStatus.CREATED)));
         }
     }
 }

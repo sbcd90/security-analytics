@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics.model;
 
+import org.opensearch.common.ParseField;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.io.stream.Writeable;
@@ -13,8 +14,6 @@ import org.opensearch.commons.authuser.User;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Detector implements Writeable, ToXContentObject {
@@ -31,6 +30,14 @@ public class Detector implements Writeable, ToXContentObject {
     private static final String INPUTS_FIELD = "inputs";
     private static final String LAST_UPDATE_TIME_FIELD = "last_update_time";
     private static final String ENABLED_TIME_FIELD = "enabled_time";
+
+    public static final String DETECTORS_INDEX = ".opensearch-detectors-config";
+
+    public static final NamedXContentRegistry.Entry XCONTENT_REGISTRY = new NamedXContentRegistry.Entry(
+            Detector.class,
+            new ParseField(DETECTOR_TYPE),
+            xcp -> parse(xcp, null, null)
+    );
 
     private String id;
 
@@ -314,5 +321,13 @@ public class Detector implements Writeable, ToXContentObject {
 
     public static Detector readFrom(StreamInput sin) throws IOException {
         return new Detector(sin);
+    }
+
+    public String getDetectorType() throws IOException {
+        return detectorType.getDetectorType();
+    }
+
+    public List<DetectorInput> getInputs() {
+        return inputs;
     }
 }

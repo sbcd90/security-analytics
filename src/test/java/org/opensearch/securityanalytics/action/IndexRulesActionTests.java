@@ -10,7 +10,7 @@ import org.opensearch.test.OpenSearchTestCase;
 public class IndexRulesActionTests extends OpenSearchTestCase {
 
     public void testIndexRulesActionName() {
-        Assert.assertNotNull(IndexRulesAction.INSTANCE.name());
-        Assert.assertEquals(IndexRulesAction.INSTANCE.name(), IndexRulesAction.NAME);
+        Assert.assertNotNull(IndexDetectorAction.INSTANCE.name());
+        Assert.assertEquals(IndexDetectorAction.INSTANCE.name(), IndexDetectorAction.NAME);
     }
 }

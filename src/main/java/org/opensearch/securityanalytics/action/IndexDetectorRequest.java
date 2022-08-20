@@ -10,37 +10,37 @@ import org.opensearch.action.support.WriteRequest;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.rest.RestRequest;
+import org.opensearch.securityanalytics.model.Detector;
 
 import java.io.IOException;
-import java.util.List;
 
-public class IndexRulesRequest extends ActionRequest {
+public class IndexDetectorRequest extends ActionRequest {
+
+    private String detectorId;
 
     private WriteRequest.RefreshPolicy refreshPolicy;
 
-    private String ruleTopic;
-
-    private String rule;
-
     private RestRequest.Method method;
 
-    public IndexRulesRequest(
+    private Detector detector;
+
+    public IndexDetectorRequest(
+            String detectorId,
             WriteRequest.RefreshPolicy refreshPolicy,
-            String ruleTopic,
-            String rule,
-            RestRequest.Method method) {
+            RestRequest.Method method,
+            Detector detector) {
         super();
+        this.detectorId = detectorId;
         this.refreshPolicy = refreshPolicy;
-        this.ruleTopic = ruleTopic;
-        this.rule = rule;
         this.method = method;
+        this.detector = detector;
     }
 
-    public IndexRulesRequest(StreamInput sin) throws IOException {
-        this(WriteRequest.RefreshPolicy.readFrom(sin),
-             sin.readString(),
-             sin.readString(),
-             sin.readEnum(RestRequest.Method.class));
+    public IndexDetectorRequest(StreamInput sin) throws IOException {
+        this(sin.readString(),
+             WriteRequest.RefreshPolicy.readFrom(sin),
+             sin.readEnum(RestRequest.Method.class),
+             Detector.readFrom(sin));
     }
 
     @Override
@@ -50,21 +50,17 @@ public class IndexRulesRequest extends ActionRequest {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(detectorId);
         refreshPolicy.writeTo(out);
-        out.writeString(ruleTopic);
-        out.writeString(rule);
         out.writeEnum(method);
-    }
-
-    public String getRuleTopic() {
-        return ruleTopic;
-    }
-
-    public String getRule() {
-        return rule;
+        detector.writeTo(out);
     }
 
     public RestRequest.Method getMethod() {
         return method;
+    }
+
+    public Detector getDetector() {
+        return detector;
     }
 }

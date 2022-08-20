@@ -6,7 +6,7 @@ package org.opensearch.securityanalytics.util;
 
 public class RestHandlerUtils {
 
-    public static final String RULE_COUNT = "rule_count";
+    public static final String _ID = "_id";
+    public static final String _VERSION = "_version";
     public static final String REFRESH = "refresh";
-    public static final String RULE_TOPIC = "rule_topic";
 }

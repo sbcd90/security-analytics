@@ -4,13 +4,12 @@
  */
 package org.opensearch.securityanalytics.model;
 
+import org.opensearch.common.CheckedFunction;
+import org.opensearch.common.ParseField;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.xcontent.ToXContentObject;
-import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.common.xcontent.XContentParserUtils;
+import org.opensearch.common.xcontent.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,6 +30,12 @@ public class DetectorInput implements Writeable, ToXContentObject {
     private static final String INDICES_FIELD = "indices";
     private static final String DETECTOR_INPUT_FIELD = "detector_input";
     private static final String RULES_FIELD = "rules";
+
+    public static final NamedXContentRegistry.Entry XCONTENT_REGISTRY = new NamedXContentRegistry.Entry(
+            DetectorInput.class,
+            new ParseField(DETECTOR_INPUT_FIELD),
+            DetectorInput::parse
+    );
 
     public DetectorInput(String description, List<String> indices, List<DetectorRule> rules) {
         this.description = description;
@@ -111,5 +116,9 @@ public class DetectorInput implements Writeable, ToXContentObject {
 
     public static DetectorInput readFrom(StreamInput sin) throws IOException {
         return new DetectorInput(sin);
+    }
+
+    public List<String> getIndices() {
+        return indices;
     }
 }

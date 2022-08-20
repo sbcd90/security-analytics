@@ -24,11 +24,13 @@ import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptService;
-import org.opensearch.securityanalytics.action.IndexRulesAction;
+import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.mappings.MapperApplier;
+import org.opensearch.securityanalytics.model.Detector;
+import org.opensearch.securityanalytics.model.DetectorInput;
 import org.opensearch.securityanalytics.resthandler.RestIndexRulesAction;
 import org.opensearch.securityanalytics.transport.TransportIndexRulesAction;
-import org.opensearch.securityanalytics.util.RuleTopicIndices;
+import org.opensearch.securityanalytics.util.DetectorIndices;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
@@ -40,7 +42,7 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
 
     public static final String RULES_BASE_URI = "/_plugins/_security_analytics/rules";
 
-    private RuleTopicIndices ruleTopicIndices;
+    private DetectorIndices detectorIndices;
 
     private MapperApplier mapperApplier;
 
@@ -56,9 +58,9 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                                                NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver,
                                                Supplier<RepositoriesService> repositoriesServiceSupplier) {
-        ruleTopicIndices = new RuleTopicIndices(clusterService, threadPool);
+        detectorIndices = new DetectorIndices(client.admin(), clusterService);
         mapperApplier = new MapperApplier();
-        return List.of(ruleTopicIndices, mapperApplier);
+        return List.of(detectorIndices, mapperApplier);
     }
 
     @Override
@@ -75,9 +77,17 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
     }
 
     @Override
+    public List<NamedXContentRegistry.Entry> getNamedXContent() {
+        return List.of(
+                Detector.XCONTENT_REGISTRY,
+                DetectorInput.XCONTENT_REGISTRY
+        );
+    }
+
+    @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return List.of(
-                new ActionPlugin.ActionHandler<>(IndexRulesAction.INSTANCE, TransportIndexRulesAction.class)
+                new ActionPlugin.ActionHandler<>(IndexDetectorAction.INSTANCE, TransportIndexRulesAction.class)
         );
     }
 }

@@ -12,12 +12,11 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
-import java.util.Collections;
 
 public class IndexRulesRequestTests extends OpenSearchTestCase {
 
     public void testIndexRulesPostRequest() throws IOException {
-        IndexRulesRequest request = new IndexRulesRequest(WriteRequest.RefreshPolicy.IMMEDIATE, "windows", "", RestRequest.Method.POST);
+        IndexDetectorRequest request = new IndexDetectorRequest(WriteRequest.RefreshPolicy.IMMEDIATE, "windows", "", RestRequest.Method.POST);
 
         Assert.assertNotNull(request);
 
@@ -25,7 +24,7 @@ public class IndexRulesRequestTests extends OpenSearchTestCase {
         request.writeTo(out);
 
         StreamInput sin = StreamInput.wrap(out.bytes().toBytesRef().bytes);
-        IndexRulesRequest newRequest = new IndexRulesRequest(sin);
+        IndexDetectorRequest newRequest = new IndexDetectorRequest(sin);
         Assert.assertEquals(RestRequest.Method.POST, newRequest.getMethod());
     }
 }
