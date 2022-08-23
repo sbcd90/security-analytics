@@ -1,3 +1,7 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.opensearch.securityanalytics.model;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -11,6 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class IntervalSchedule extends Schedule {
 
@@ -110,5 +115,18 @@ public class IntervalSchedule extends Schedule {
             .endObject()
             .endObject();
         return builder;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        IntervalSchedule that = (IntervalSchedule) o;
+        return interval.equals(that.interval) && unit == that.unit && intervalInMills.equals(that.intervalInMills);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(interval, unit, intervalInMills);
     }
 }

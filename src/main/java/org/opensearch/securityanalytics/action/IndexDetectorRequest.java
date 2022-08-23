@@ -63,4 +63,8 @@ public class IndexDetectorRequest extends ActionRequest {
     public Detector getDetector() {
         return detector;
     }
+
+    public WriteRequest.RefreshPolicy getRefreshPolicy() {
+        return refreshPolicy;
+    }
 }

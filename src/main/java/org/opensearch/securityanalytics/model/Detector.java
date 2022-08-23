@@ -4,6 +4,8 @@
  */
 package org.opensearch.securityanalytics.model;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
 
 public class Detector implements Writeable, ToXContentObject {
 
+    private static final Logger log = LogManager.getLogger(Detector.class);
+
     private static final String DETECTOR_TYPE = "detector";
     private static final String TYPE_FIELD = "type";
     private static final String DETECTOR_TYPE_FIELD = "detector_type";
@@ -25,7 +29,7 @@ public class Detector implements Writeable, ToXContentObject {
     private static final String USER_FIELD = "user";
     private static final String ENABLED_FIELD = "enabled";
     private static final String SCHEDULE_FIELD = "schedule";
-    private static final String NO_ID = "";
+    public static final String NO_ID = "";
     private static final Long NO_VERSION = 1L;
     private static final String INPUTS_FIELD = "inputs";
     private static final String LAST_UPDATE_TIME_FIELD = "last_update_time";
@@ -131,7 +135,7 @@ public class Detector implements Writeable, ToXContentObject {
         return createXContentBuilder(builder, params, true);
     }
 
-    enum DetectorType {
+    public enum DetectorType {
         APPLICATION,
         APT,
         CLOUD,
@@ -193,7 +197,7 @@ public class Detector implements Writeable, ToXContentObject {
         if (enabledTime == null) {
             builder.nullField(ENABLED_TIME_FIELD);
         } else {
-            builder.timeField(ENABLED_TIME_FIELD, String.format(Locale.getDefault(), "%s_in_millis", enabledTime.toEpochMilli()));
+            builder.timeField(ENABLED_TIME_FIELD, String.format(Locale.getDefault(), "%s_in_millis", ENABLED_TIME_FIELD), enabledTime.toEpochMilli());
         }
 
         builder.field(SCHEDULE_FIELD, schedule);
@@ -205,7 +209,7 @@ public class Detector implements Writeable, ToXContentObject {
         if (lastUpdateTime == null) {
             builder.nullField(LAST_UPDATE_TIME_FIELD);
         } else {
-            builder.timeField(LAST_UPDATE_TIME_FIELD, String.format(Locale.getDefault(), "%s_in_millis", lastUpdateTime.toEpochMilli()));
+            builder.timeField(LAST_UPDATE_TIME_FIELD, String.format(Locale.getDefault(), "%s_in_millis", LAST_UPDATE_TIME_FIELD), lastUpdateTime.toEpochMilli());
         }
 
         if (params.paramAsBoolean("with_type", false)) {
@@ -234,6 +238,7 @@ public class Detector implements Writeable, ToXContentObject {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
         while (xcp.nextToken() != XContentParser.Token.END_OBJECT) {
             String fieldName = xcp.currentName();
+            log.info("hit here-" + fieldName);
             xcp.nextToken();
 
             switch (fieldName) {
@@ -250,7 +255,7 @@ public class Detector implements Writeable, ToXContentObject {
                         }
                     }).collect(Collectors.toList());
 
-                    if (!allowedTypes.contains(detectorType)) {
+                    if (!allowedTypes.contains(detectorType.toLowerCase(Locale.ROOT))) {
                         throw new IllegalStateException("Monitor type should be one of ");
                     }
                     break;
@@ -323,11 +328,40 @@ public class Detector implements Writeable, ToXContentObject {
         return new Detector(sin);
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
     public String getDetectorType() throws IOException {
         return detectorType.getDetectorType();
     }
 
     public List<DetectorInput> getInputs() {
         return inputs;
+    }
+
+    public void setLastUpdateTime(Instant lastUpdateTime) {
+        this.lastUpdateTime = lastUpdateTime;
+    }
+
+    public void setInputs(List<DetectorInput> inputs) {
+        this.inputs = inputs;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Detector detector = (Detector) o;
+        return Objects.equals(id, detector.id) && Objects.equals(version, detector.version) && Objects.equals(name, detector.name) && Objects.equals(enabled, detector.enabled) && Objects.equals(schedule, detector.schedule) && Objects.equals(lastUpdateTime, detector.lastUpdateTime) && Objects.equals(enabledTime, detector.enabledTime) && detectorType == detector.detectorType && Objects.equals(user, detector.user) && Objects.equals(inputs, detector.inputs) && Objects.equals(type, detector.type);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, version, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, type);
     }
 }

@@ -21,7 +21,7 @@ import java.util.Map;
 
 public class RuleRestApiIT extends SecurityAnalyticsIntegTestCase {
 
-    public void testOnboardRulesWithWindowsTopicAsFilter() throws IOException {
+/*    public void testOnboardRulesWithWindowsTopicAsFilter() throws IOException {
         Response response = makeRequest(client(), "POST", SecurityAnalyticsPlugin.RULES_BASE_URI, Collections.singletonMap("rule_topic", "windows"),
                 new StringEntity("{}", ContentType.APPLICATION_JSON));
 
@@ -49,5 +49,5 @@ public class RuleRestApiIT extends SecurityAnalyticsIntegTestCase {
                     new StringEntity("{}", ContentType.APPLICATION_JSON));
         });
         assertTrue(exception.getMessage().contains("rule_topic is empty"));
-    }
+    }*/
 }

@@ -6,7 +6,7 @@ import org.opensearch.gradle.test.RestIntegTestTask
 
 buildscript {
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.1.0-SNAPSHOT")
+        opensearch_version = System.getProperty("opensearch.version", "2.0.0-SNAPSHOT")
         isSnapshot = "true" == System.getProperty("build.snapshot", "true")
         buildVersionQualifier = System.getProperty("build.version_qualifier", "")
         version_tokens = opensearch_version.tokenize('-')
@@ -135,6 +135,7 @@ dependencies {
     implementation "org.antlr:antlr4-runtime:4.10.1"
     implementation "com.cronutils:cron-utils:9.1.6"
     api "org.opensearch:common-utils:${common_utils_version}"
+    api "org.opensearch.client:opensearch-rest-client:${opensearch_version}"
 }
 
 // RPM & Debian build

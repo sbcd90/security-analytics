@@ -28,10 +28,10 @@ public class DetectorRule implements Writeable, ToXContentObject {
 
     private static final List<String> INVALID_CHARACTERS = List.of(" ", "[", "]", "{", "}", "(", ")");
 
-    private static final String RULE_ID_FIELD = "id";
-    private static final String NAME_FIELD = "name";
-    private static final String RULE_FIELD = "rule";
-    private static final String TAGS_FIELD = "tags";
+    protected static final String RULE_ID_FIELD = "id";
+    protected static final String NAME_FIELD = "name";
+    protected static final String RULE_FIELD = "rule";
+    protected static final String TAGS_FIELD = "tags";
 
     public DetectorRule(String id, String name, String rule, List<String> tags) {
         this.name = name;
@@ -125,5 +125,21 @@ public class DetectorRule implements Writeable, ToXContentObject {
                         "They query name or tag, %s, contains an invalid character: [' ','[',']','{','}','(',')']", stringVal));
             }
         }
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getRule() {
+        return rule;
+    }
+
+    public List<String> getTags() {
+        return tags;
     }
 }

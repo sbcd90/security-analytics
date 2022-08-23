@@ -23,7 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Objects;
 
-abstract class Schedule implements Writeable, ToXContentObject {
+public abstract class Schedule implements Writeable, ToXContentObject {
 
     protected static final String CRON_FIELD = "cron";
     protected static final String EXPRESSION_FIELD = "expression";

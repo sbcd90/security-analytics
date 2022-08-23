@@ -11,10 +11,7 @@ import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.common.settings.*;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
@@ -28,8 +25,9 @@ import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.mappings.MapperApplier;
 import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.model.DetectorInput;
-import org.opensearch.securityanalytics.resthandler.RestIndexRulesAction;
-import org.opensearch.securityanalytics.transport.TransportIndexRulesAction;
+import org.opensearch.securityanalytics.resthandler.RestIndexDetectorAction;
+import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
+import org.opensearch.securityanalytics.transport.TransportIndexDetectorAction;
 import org.opensearch.securityanalytics.util.DetectorIndices;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
@@ -58,8 +56,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                                                NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver,
                                                Supplier<RepositoriesService> repositoriesServiceSupplier) {
-        detectorIndices = new DetectorIndices(client.admin(), clusterService);
-        mapperApplier = new MapperApplier();
+        detectorIndices = new DetectorIndices(client.admin(), clusterService, threadPool);
+        mapperApplier = new MapperApplier(client.admin());
         return List.of(detectorIndices, mapperApplier);
     }
 
@@ -72,7 +70,7 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                                              IndexNameExpressionResolver indexNameExpressionResolver,
                                              Supplier<DiscoveryNodes> nodesInCluster) {
         return List.of(
-                new RestIndexRulesAction()
+                new RestIndexDetectorAction()
         );
     }
 
@@ -85,9 +83,16 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
     }
 
     @Override
+    public List<Setting<?>> getSettings() {
+        return List.of(
+                SecurityAnalyticsSettings.INDEX_TIMEOUT
+        );
+    }
+
+    @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return List.of(
-                new ActionPlugin.ActionHandler<>(IndexDetectorAction.INSTANCE, TransportIndexRulesAction.class)
+                new ActionPlugin.ActionHandler<>(IndexDetectorAction.INSTANCE, TransportIndexDetectorAction.class)
         );
     }
 }

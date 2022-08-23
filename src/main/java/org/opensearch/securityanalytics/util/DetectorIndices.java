@@ -40,7 +40,7 @@ public class DetectorIndices {
     }
 
     public static String detectorMappings() throws IOException {
-        return new String(Objects.requireNonNull(DetectorIndices.class.getClassLoader().getResource("mappings/detectors.json")).openStream().readAllBytes(), Charset.defaultCharset());
+        return new String(Objects.requireNonNull(DetectorIndices.class.getClassLoader().getResourceAsStream("mappings/detectors.json")).readAllBytes(), Charset.defaultCharset());
     }
 
     public void initDetectorIndex(ActionListener<CreateIndexResponse> actionListener) throws IOException {

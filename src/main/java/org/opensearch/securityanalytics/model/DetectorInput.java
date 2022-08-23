@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class DetectorInput implements Writeable, ToXContentObject {
 
@@ -90,6 +91,10 @@ public class DetectorInput implements Writeable, ToXContentObject {
         List<DetectorRule> rules = new ArrayList<>();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, xcp.nextToken(), xcp);
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.nextToken(), xcp);
+
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
         while (xcp.nextToken() != XContentParser.Token.END_OBJECT) {
             String fieldName = xcp.currentName();
             xcp.nextToken();
@@ -111,6 +116,7 @@ public class DetectorInput implements Writeable, ToXContentObject {
                     }
             }
         }
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.END_OBJECT, xcp.nextToken(), xcp);
         return new DetectorInput(description, indices, rules);
     }
 
@@ -120,5 +126,18 @@ public class DetectorInput implements Writeable, ToXContentObject {
 
     public List<String> getIndices() {
         return indices;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DetectorInput input = (DetectorInput) o;
+        return Objects.equals(description, input.description) && Objects.equals(indices, input.indices) && Objects.equals(rules, input.rules);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(description, indices, rules);
     }
 }

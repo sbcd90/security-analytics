@@ -1,0 +1,78 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package org.opensearch.securityanalytics.resthandler;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.opensearch.action.support.WriteRequest;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.common.xcontent.XContentParserUtils;
+import org.opensearch.rest.*;
+import org.opensearch.rest.action.RestResponseListener;
+import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
+import org.opensearch.securityanalytics.action.IndexDetectorAction;
+import org.opensearch.securityanalytics.action.IndexDetectorRequest;
+import org.opensearch.securityanalytics.action.IndexDetectorResponse;
+import org.opensearch.securityanalytics.model.Detector;
+import org.opensearch.securityanalytics.util.RestHandlerUtils;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.util.*;
+
+public class RestIndexDetectorAction extends BaseRestHandler {
+
+    private static final Logger log = LogManager.getLogger(RestIndexDetectorAction.class);
+
+    @Override
+    public String getName() {
+        return "index_rules_action";
+    }
+
+    @Override
+    public List<Route> routes() {
+        return List.of(
+                new Route(RestRequest.Method.POST, SecurityAnalyticsPlugin.RULES_BASE_URI)
+        );
+    }
+
+    @Override
+    protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        log.debug(String.format(Locale.getDefault(), "%s %s", request.method(), SecurityAnalyticsPlugin.RULES_BASE_URI));
+        log.info("hit here5");
+
+        WriteRequest.RefreshPolicy refreshPolicy = WriteRequest.RefreshPolicy.IMMEDIATE;
+        if (request.hasParam(RestHandlerUtils.REFRESH)) {
+            refreshPolicy = WriteRequest.RefreshPolicy.parse(request.param(RestHandlerUtils.REFRESH));
+        }
+
+        String id = request.param("detectorID", Detector.NO_ID);
+
+        log.info("hit here4");
+        XContentParser xcp = request.contentParser();
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.nextToken(), xcp);
+
+        log.info("hit here2");
+        Detector detector = Detector.parse(xcp, id, null);
+        detector.setLastUpdateTime(Instant.now());
+        log.info("hit here1");
+
+        IndexDetectorRequest indexRulesRequest = new IndexDetectorRequest(id, refreshPolicy, request.method(), detector);
+        return channel -> client.execute(IndexDetectorAction.INSTANCE, indexRulesRequest, indexRulesResponse(channel, request.method()));
+    }
+
+    private RestResponseListener<IndexDetectorResponse> indexRulesResponse(RestChannel channel, RestRequest.Method restMethod) {
+        return new RestResponseListener<>(channel) {
+            @Override
+            public RestResponse buildResponse(IndexDetectorResponse response) throws Exception {
+                RestStatus returnStatus = RestStatus.CREATED;
+
+                return new BytesRestResponse(returnStatus, response.toXContent(channel.newBuilder(), ToXContent.EMPTY_PARAMS));
+            }
+        };
+    }
+}
