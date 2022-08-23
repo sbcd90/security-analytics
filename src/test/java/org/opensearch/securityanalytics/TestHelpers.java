@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics;
 
+import org.opensearch.common.Randomness;
 import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.*;
 import org.opensearch.commons.authuser.User;
@@ -99,7 +100,7 @@ public class TestHelpers {
         List<DetectorInput> inputs = Collections.emptyList();
         Schedule schedule = new IntervalSchedule(5, ChronoUnit.MINUTES);
         Boolean enabled = OpenSearchTestCase.randomBoolean();
-        Instant enabledTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Instant enabledTime = enabled? Instant.now().truncatedTo(ChronoUnit.MILLIS): null;
         Instant lastUpdateTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
         return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, null, inputs);
@@ -134,7 +135,7 @@ public class TestHelpers {
 
     public static String randomDetectorType() {
         List<String> detectorTypes = List.of("application", "apt");
-        return detectorTypes.get(new Random().nextInt(detectorTypes.size()));
+        return detectorTypes.get(Randomness.get().nextInt(detectorTypes.size()));
     }
 
     public static DetectorRule randomDetectorRule() {

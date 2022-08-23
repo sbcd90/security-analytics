@@ -38,7 +38,7 @@ import java.util.function.Supplier;
 
 public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
 
-    public static final String RULES_BASE_URI = "/_plugins/_security_analytics/rules";
+    public static final String DETECTOR_BASE_URI = "/_plugins/_security_analytics/detectors";
 
     private DetectorIndices detectorIndices;
 

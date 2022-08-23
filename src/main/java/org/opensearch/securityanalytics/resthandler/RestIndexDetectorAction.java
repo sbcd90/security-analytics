@@ -36,14 +36,13 @@ public class RestIndexDetectorAction extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return List.of(
-                new Route(RestRequest.Method.POST, SecurityAnalyticsPlugin.RULES_BASE_URI)
+                new Route(RestRequest.Method.POST, SecurityAnalyticsPlugin.DETECTOR_BASE_URI)
         );
     }
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        log.debug(String.format(Locale.getDefault(), "%s %s", request.method(), SecurityAnalyticsPlugin.RULES_BASE_URI));
-        log.info("hit here5");
+        log.debug(String.format(Locale.getDefault(), "%s %s", request.method(), SecurityAnalyticsPlugin.DETECTOR_BASE_URI));
 
         WriteRequest.RefreshPolicy refreshPolicy = WriteRequest.RefreshPolicy.IMMEDIATE;
         if (request.hasParam(RestHandlerUtils.REFRESH)) {
@@ -52,14 +51,11 @@ public class RestIndexDetectorAction extends BaseRestHandler {
 
         String id = request.param("detectorID", Detector.NO_ID);
 
-        log.info("hit here4");
         XContentParser xcp = request.contentParser();
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.nextToken(), xcp);
 
-        log.info("hit here2");
         Detector detector = Detector.parse(xcp, id, null);
         detector.setLastUpdateTime(Instant.now());
-        log.info("hit here1");
 
         IndexDetectorRequest indexRulesRequest = new IndexDetectorRequest(id, refreshPolicy, request.method(), detector);
         return channel -> client.execute(IndexDetectorAction.INSTANCE, indexRulesRequest, indexRulesResponse(channel, request.method()));

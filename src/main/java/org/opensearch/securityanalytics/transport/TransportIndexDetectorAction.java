@@ -24,7 +24,6 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.rest.RestStatus;
-import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
 import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.action.IndexDetectorRequest;
 import org.opensearch.securityanalytics.action.IndexDetectorResponse;
@@ -37,6 +36,7 @@ import org.opensearch.securityanalytics.rules.objects.SigmaRule;
 import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
 import org.opensearch.securityanalytics.util.DetectorIndices;
 import org.opensearch.securityanalytics.util.IndexUtils;
+import org.opensearch.securityanalytics.util.SecurityAnalyticsException;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
@@ -88,7 +88,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
 
     @Override
     protected void doExecute(Task task, IndexDetectorRequest request, ActionListener<IndexDetectorResponse> listener) {
-        AsyncIndexRulesAction asyncAction = new AsyncIndexRulesAction(task, request, listener);
+        AsyncIndexDetectorsAction asyncAction = new AsyncIndexDetectorsAction(task, request, listener);
         asyncAction.start();
     }
 
@@ -138,11 +138,11 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         List<String> rules = getRules(List.of(folderPath));
         String logIndex = folderPath.getFileName().toString();
         Pair<String, List<String>> logIndexToRules = Pair.of(logIndex, rules);
-        ingestQueries(logIndexToRules);
+        ingestQueries(logIndexToRules, ruleTopic);
     }
 
-    private void ingestQueries(Pair<String, List<String>> logIndexToRule) throws SigmaError, IOException {
-        final QueryBackend backend = new OSQueryBackend(true, true);
+    private void ingestQueries(Pair<String, List<String>> logIndexToRule, String ruleTopic) throws SigmaError, IOException {
+        final QueryBackend backend = new OSQueryBackend(ruleTopic, true, true);
 
         List<Object> queries = getQueries(backend, logIndexToRule.getValue());
         long rulesCount = queries.size();
@@ -204,7 +204,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         }
     }
 
-    class AsyncIndexRulesAction {
+    class AsyncIndexDetectorsAction {
         private final IndexDetectorRequest request;
 
         private final ActionListener<IndexDetectorResponse> listener;
@@ -212,7 +212,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         private final AtomicBoolean counter = new AtomicBoolean();
         private final Task task;
 
-        AsyncIndexRulesAction(Task task, IndexDetectorRequest request, ActionListener<IndexDetectorResponse> listener) {
+        AsyncIndexDetectorsAction(Task task, IndexDetectorRequest request, ActionListener<IndexDetectorResponse> listener) {
             this.task = task;
             this.request = request;
             this.listener = listener;
@@ -316,7 +316,9 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
             client.index(indexRequest, new ActionListener<>() {
                 @Override
                 public void onResponse(IndexResponse response) {
-                    onOperation(response, request.getDetector());
+                    Detector responseDetector = request.getDetector();
+                    responseDetector.setId(response.getId());
+                    onOperation(response, responseDetector);
                 }
 
                 @Override
@@ -329,19 +331,24 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         private void onOperation(IndexResponse response, Detector detector) {
             this.response.set(response);
             if (counter.compareAndSet(false, true)) {
-                finishHim(detector);
+                finishHim(detector, null);
             }
         }
 
-        private void onFailures(Throwable t) {
-            log.info(t.getMessage());
+        private void onFailures(Exception t) {
             if (counter.compareAndSet(false, true)) {
-                finishHim(null);
+                finishHim(null, t);
             }
         }
 
-        private void finishHim(Detector detector) {
-            threadPool.executor(ThreadPool.Names.GENERIC).execute(ActionRunnable.supply(listener, () -> new IndexDetectorResponse(detector.getId(), detector.getVersion(), RestStatus.CREATED, detector)));
+        private void finishHim(Detector detector, Exception t) {
+            threadPool.executor(ThreadPool.Names.GENERIC).execute(ActionRunnable.supply(listener, () -> {
+                if (t != null) {
+                    throw SecurityAnalyticsException.wrap(t);
+                } else {
+                    return new IndexDetectorResponse(detector.getId(), detector.getVersion(), RestStatus.CREATED, detector);
+                }
+            }));
         }
     }
 }

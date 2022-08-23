@@ -33,12 +33,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public abstract class QueryBackend {
 
@@ -53,7 +48,7 @@ public abstract class QueryBackend {
     protected Map<String, Object> ruleQueryFields;
 
     @SuppressWarnings("unchecked")
-    public QueryBackend(boolean convertAndAsIn, boolean enableFieldMappings, boolean convertOrAsIn, boolean collectErrors) throws IOException {
+    public QueryBackend(String ruleCategory, boolean convertAndAsIn, boolean enableFieldMappings, boolean convertOrAsIn, boolean collectErrors) throws IOException {
         this.convertAndAsIn = convertAndAsIn;
         this.convertOrAsIn = convertOrAsIn;
         this.collectErrors = collectErrors;
@@ -62,7 +57,7 @@ public abstract class QueryBackend {
         this.queryFields = new HashMap<>();
 
         if (this.enableFieldMappings) {
-            InputStream is = this.getClass().getClassLoader().getResourceAsStream("OSMapping/fieldmappings.yml");
+            InputStream is = this.getClass().getClassLoader().getResourceAsStream(String.format(Locale.getDefault(), "OSMapping/%s/fieldmappings.yml", ruleCategory));
             assert is != null;
             String content = new String(is.readAllBytes(), Charset.defaultCharset());
 
