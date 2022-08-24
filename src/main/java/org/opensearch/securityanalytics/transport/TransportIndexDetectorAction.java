@@ -17,12 +17,16 @@ import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.Client;
+import org.opensearch.client.node.NodeClient;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.commons.alerting.AlertingPluginInterface;
+import org.opensearch.commons.alerting.action.CreateMonitorRequest;
+import org.opensearch.commons.alerting.action.CreateMonitorResponse;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.action.IndexDetectorRequest;
@@ -92,7 +96,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         asyncAction.start();
     }
 
-    private void importRules(IndexDetectorRequest request) throws URISyntaxException, IOException, SigmaError, InterruptedException, ExecutionException {
+    private void importRules(IndexDetectorRequest request, ActionListener<CreateMonitorResponse> listener) throws URISyntaxException, IOException, SigmaError, InterruptedException, ExecutionException {
         final Detector detector = request.getDetector();
 
         final String ruleTopic = detector.getDetectorType();
@@ -100,10 +104,10 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
 
         if (url.contains("!")) {
             final String[] paths = url.split("!");
-            loadQueries(paths, ruleTopic);
+            loadQueries(paths, ruleTopic, listener);
         } else {
             Path path = Path.of(url);
-            loadQueries(path, ruleTopic);
+            loadQueries(path, ruleTopic, listener);
         }
     }
 
@@ -125,7 +129,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         return rules;
     }
 
-    private void loadQueries(Path path, String ruleTopic) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(Path path, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws IOException, SigmaError, ExecutionException, InterruptedException {
         Stream<Path> folder = Files.list(path);
         folder = folder.filter(pathElem -> pathElem.endsWith(ruleTopic));
 
@@ -138,10 +142,10 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         List<String> rules = getRules(List.of(folderPath));
         String logIndex = folderPath.getFileName().toString();
         Pair<String, List<String>> logIndexToRules = Pair.of(logIndex, rules);
-        ingestQueries(logIndexToRules, ruleTopic);
+        ingestQueries(logIndexToRules, ruleTopic, listener);
     }
 
-    private void ingestQueries(Pair<String, List<String>> logIndexToRule, String ruleTopic) throws SigmaError, IOException {
+    private void ingestQueries(Pair<String, List<String>> logIndexToRule, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws SigmaError, IOException {
         final QueryBackend backend = new OSQueryBackend(ruleTopic, true, true);
 
         List<Object> queries = getQueries(backend, logIndexToRule.getValue());
@@ -150,13 +154,13 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         Pair<String, List<Object>> logIndexToQueries = Pair.of(logIndexToRule.getKey(), queries);
         Pair<String, Map<String, Object>> logIndexToQueryFields = Pair.of(logIndexToRule.getKey(), backend.getQueryFields());
 
-        createAlertingMonitorFromQueries(logIndexToQueries, logIndexToQueryFields);
+        createAlertingMonitorFromQueries(logIndexToQueries, logIndexToQueryFields, listener);
     }
 
-    private void loadQueries(String[] paths, String ruleTopic) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(String[] paths, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws IOException, SigmaError, ExecutionException, InterruptedException {
         getOrCreateFS(paths[0]);
         Path path = fs.getPath(paths[1]);
-        loadQueries(path, ruleTopic);
+        loadQueries(path, ruleTopic, listener);
     }
 
     private static FileSystem getOrCreateFS(String path) throws IOException {
@@ -177,8 +181,10 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         return queries;
     }
 
-    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries, Pair<String, Map<String, Object>> logIndexToQueryFields) {
+    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries, Pair<String, Map<String, Object>> logIndexToQueryFields, ActionListener<CreateMonitorResponse> listener) {
         try {
+            CreateMonitorRequest createMonitorRequest = new CreateMonitorRequest("a1245");
+            AlertingPluginInterface.INSTANCE.callAlertingMonitor((NodeClient) client, createMonitorRequest, listener);
         } catch (Exception ex) {
             log.info(ex.getMessage());
         }
@@ -287,8 +293,23 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                                  * pass also ActionListener
                                  */
                                 try {
-                                    importRules(request);
-                                    indexDetector();
+                                    importRules(request, new ActionListener<CreateMonitorResponse>() {
+                                        @Override
+                                        public void onResponse(CreateMonitorResponse createMonitorResponse) {
+                                            log.info("hit from security-analytics: call successful " + createMonitorResponse.getConfigId());
+                                            try {
+                                                indexDetector();
+                                            } catch (IOException e) {
+                                                onFailures(e);
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            log.info("hit from security-analytics: call failed " + e.getMessage());
+                                            onFailures(e);
+                                        }
+                                    });
                                 } catch (URISyntaxException | IOException | SigmaError | InterruptedException | ExecutionException e) {
                                     onFailures(e);
                                 }
