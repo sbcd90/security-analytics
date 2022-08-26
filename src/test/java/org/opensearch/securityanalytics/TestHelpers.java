@@ -7,6 +7,8 @@ package org.opensearch.securityanalytics;
 import org.opensearch.common.Randomness;
 import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.*;
+import org.opensearch.commons.alerting.model.IntervalSchedule;
+import org.opensearch.commons.alerting.model.Schedule;
 import org.opensearch.commons.authuser.User;
 import org.opensearch.securityanalytics.model.*;
 import org.opensearch.test.OpenSearchTestCase;
@@ -76,7 +78,7 @@ public class TestHelpers {
             inputs = Collections.emptyList();
         }
         if (schedule == null) {
-            schedule = new IntervalSchedule(5, ChronoUnit.MINUTES);
+            schedule = new IntervalSchedule(5, ChronoUnit.MINUTES, null);
         }
         if (enabled == null) {
             enabled = OpenSearchTestCase.randomBoolean();
@@ -98,7 +100,7 @@ public class TestHelpers {
         String name = OpenSearchRestTestCase.randomAlphaOfLength(10);
         Detector.DetectorType detectorType = Detector.DetectorType.valueOf(randomDetectorType().toUpperCase(Locale.ROOT));
         List<DetectorInput> inputs = Collections.emptyList();
-        Schedule schedule = new IntervalSchedule(5, ChronoUnit.MINUTES);
+        Schedule schedule = new IntervalSchedule(5, ChronoUnit.MINUTES, null);
         Boolean enabled = OpenSearchTestCase.randomBoolean();
         Instant enabledTime = enabled? Instant.now().truncatedTo(ChronoUnit.MILLIS): null;
         Instant lastUpdateTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);

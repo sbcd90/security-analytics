@@ -1,6 +1,6 @@
 {
   "properties": {
-    "source.ip": {
+    "source_ip": {
       "type": "alias",
       "path": "src_ip"
     }

@@ -15,6 +15,7 @@ import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.action.support.WriteRequest;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.Client;
 import org.opensearch.client.node.NodeClient;
@@ -25,8 +26,13 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.commons.alerting.AlertingPluginInterface;
-import org.opensearch.commons.alerting.action.CreateMonitorRequest;
-import org.opensearch.commons.alerting.action.CreateMonitorResponse;
+import org.opensearch.commons.alerting.action.IndexMonitorRequest;
+import org.opensearch.commons.alerting.action.IndexMonitorResponse;
+import org.opensearch.commons.alerting.model.DocLevelMonitorInput;
+import org.opensearch.commons.alerting.model.DocLevelQuery;
+import org.opensearch.commons.alerting.model.Monitor;
+import org.opensearch.index.seqno.SequenceNumbers;
+import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.action.IndexDetectorRequest;
@@ -96,18 +102,20 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         asyncAction.start();
     }
 
-    private void importRules(IndexDetectorRequest request, ActionListener<CreateMonitorResponse> listener) throws URISyntaxException, IOException, SigmaError, InterruptedException, ExecutionException {
+    private void importRules(IndexDetectorRequest request, ActionListener<IndexMonitorResponse> listener) throws URISyntaxException, IOException, SigmaError, InterruptedException, ExecutionException {
         final Detector detector = request.getDetector();
-
+        final WriteRequest.RefreshPolicy refreshPolicy = request.getRefreshPolicy();
         final String ruleTopic = detector.getDetectorType();
+        final String logIndex = detector.getInputs().get(0).getIndices().get(0);
+
         final String url = Objects.requireNonNull(getClass().getClassLoader().getResource("rules/")).toURI().toString();
 
         if (url.contains("!")) {
             final String[] paths = url.split("!");
-            loadQueries(paths, ruleTopic, listener);
+            loadQueries(paths, logIndex, ruleTopic, detector, listener, refreshPolicy);
         } else {
             Path path = Path.of(url);
-            loadQueries(path, ruleTopic, listener);
+            loadQueries(path, logIndex, ruleTopic, detector, listener, refreshPolicy);
         }
     }
 
@@ -129,7 +137,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         return rules;
     }
 
-    private void loadQueries(Path path, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(Path path, String logIndex, String ruleTopic, Detector detector, ActionListener<IndexMonitorResponse> listener, WriteRequest.RefreshPolicy refreshPolicy) throws IOException, SigmaError, ExecutionException, InterruptedException {
         Stream<Path> folder = Files.list(path);
         folder = folder.filter(pathElem -> pathElem.endsWith(ruleTopic));
 
@@ -140,12 +148,11 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         Path folderPath = folderPaths.get(0);
 
         List<String> rules = getRules(List.of(folderPath));
-        String logIndex = folderPath.getFileName().toString();
         Pair<String, List<String>> logIndexToRules = Pair.of(logIndex, rules);
-        ingestQueries(logIndexToRules, ruleTopic, listener);
+        ingestQueries(logIndexToRules, ruleTopic, detector, listener, refreshPolicy);
     }
 
-    private void ingestQueries(Pair<String, List<String>> logIndexToRule, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws SigmaError, IOException {
+    private void ingestQueries(Pair<String, List<String>> logIndexToRule, String ruleTopic, Detector detector, ActionListener<IndexMonitorResponse> listener, WriteRequest.RefreshPolicy refreshPolicy) throws SigmaError, IOException {
         final QueryBackend backend = new OSQueryBackend(ruleTopic, true, true);
 
         List<Object> queries = getQueries(backend, logIndexToRule.getValue());
@@ -154,13 +161,13 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         Pair<String, List<Object>> logIndexToQueries = Pair.of(logIndexToRule.getKey(), queries);
         Pair<String, Map<String, Object>> logIndexToQueryFields = Pair.of(logIndexToRule.getKey(), backend.getQueryFields());
 
-        createAlertingMonitorFromQueries(logIndexToQueries, logIndexToQueryFields, listener);
+        createAlertingMonitorFromQueries(logIndexToQueries, logIndexToQueryFields, detector, listener, refreshPolicy);
     }
 
-    private void loadQueries(String[] paths, String ruleTopic, ActionListener<CreateMonitorResponse> listener) throws IOException, SigmaError, ExecutionException, InterruptedException {
+    private void loadQueries(String[] paths, String logIndex, String ruleTopic, Detector detector, ActionListener<IndexMonitorResponse> listener, WriteRequest.RefreshPolicy refreshPolicy) throws IOException, SigmaError, ExecutionException, InterruptedException {
         getOrCreateFS(paths[0]);
         Path path = fs.getPath(paths[1]);
-        loadQueries(path, ruleTopic, listener);
+        loadQueries(path, logIndex, ruleTopic, detector, listener, refreshPolicy);
     }
 
     private static FileSystem getOrCreateFS(String path) throws IOException {
@@ -181,10 +188,27 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         return queries;
     }
 
-    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries, Pair<String, Map<String, Object>> logIndexToQueryFields, ActionListener<CreateMonitorResponse> listener) {
+    private void createAlertingMonitorFromQueries(Pair<String, List<Object>> logIndexToQueries, Pair<String, Map<String, Object>> logIndexToQueryFields, Detector detector, ActionListener<IndexMonitorResponse> listener, WriteRequest.RefreshPolicy refreshPolicy) {
         try {
-            CreateMonitorRequest createMonitorRequest = new CreateMonitorRequest("a1245");
-            AlertingPluginInterface.INSTANCE.callAlertingMonitor((NodeClient) client, createMonitorRequest, listener);
+            List<DocLevelMonitorInput> docLevelMonitorInputs = new ArrayList<>();
+
+            List<DocLevelQuery> docLevelQueries = new ArrayList<>();
+            int idx = 1;
+
+            for (Object query: logIndexToQueries.getRight()) {
+                DocLevelQuery docLevelQuery = new DocLevelQuery(String.valueOf(idx), String.valueOf(idx), query.toString(), List.of());
+                docLevelQueries.add(docLevelQuery);
+
+                ++idx;
+            }
+            DocLevelMonitorInput docLevelMonitorInput = new DocLevelMonitorInput(detector.getName(), List.of(logIndexToQueries.getKey()), docLevelQueries);
+            docLevelMonitorInputs.add(docLevelMonitorInput);
+
+            Monitor monitor = new Monitor(Monitor.NO_ID, Monitor.NO_VERSION, detector.getName(), detector.getEnabled(), detector.getSchedule(), detector.getLastUpdateTime(), detector.getEnabledTime(),
+                    Monitor.MonitorType.DOC_LEVEL_MONITOR, detector.getUser(), 1, docLevelMonitorInputs, List.of(), Map.of());
+
+            IndexMonitorRequest indexMonitorRequest = new IndexMonitorRequest(Monitor.NO_ID, SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, refreshPolicy, RestRequest.Method.POST, monitor);
+            AlertingPluginInterface.INSTANCE.indexMonitor((NodeClient) client, indexMonitorRequest, listener);
         } catch (Exception ex) {
             log.info(ex.getMessage());
         }
@@ -293,10 +317,10 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                                  * pass also ActionListener
                                  */
                                 try {
-                                    importRules(request, new ActionListener<CreateMonitorResponse>() {
+                                    importRules(request, new ActionListener<>() {
                                         @Override
-                                        public void onResponse(CreateMonitorResponse createMonitorResponse) {
-                                            log.info("hit from security-analytics: call successful " + createMonitorResponse.getConfigId());
+                                        public void onResponse(IndexMonitorResponse indexMonitorResponse) {
+                                            log.info("hit from security-analytics: call successful " + indexMonitorResponse.getId());
                                             try {
                                                 indexDetector();
                                             } catch (IOException e) {

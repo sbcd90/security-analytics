@@ -11,6 +11,8 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.*;
+import org.opensearch.commons.alerting.model.CronSchedule;
+import org.opensearch.commons.alerting.model.Schedule;
 import org.opensearch.commons.authuser.User;
 
 import java.io.IOException;
@@ -335,8 +337,32 @@ public class Detector implements Writeable, ToXContentObject {
         return version;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public Schedule getSchedule() {
+        return schedule;
+    }
+
+    public Instant getLastUpdateTime() {
+        return lastUpdateTime;
+    }
+
+    public Instant getEnabledTime() {
+        return enabledTime;
+    }
+
     public String getDetectorType() throws IOException {
         return detectorType.getDetectorType();
+    }
+
+    public User getUser() {
+        return user;
     }
 
     public List<DetectorInput> getInputs() {
