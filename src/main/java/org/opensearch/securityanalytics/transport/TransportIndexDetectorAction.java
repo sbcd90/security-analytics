@@ -321,6 +321,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                                         @Override
                                         public void onResponse(IndexMonitorResponse indexMonitorResponse) {
                                             log.info("hit from security-analytics: call successful " + indexMonitorResponse.getId());
+                                            request.getDetector().setMonitorId(indexMonitorResponse.getId());
                                             try {
                                                 indexDetector();
                                             } catch (IOException e) {

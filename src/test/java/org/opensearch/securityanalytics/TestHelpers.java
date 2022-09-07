@@ -93,7 +93,7 @@ public class TestHelpers {
         }
 
 
-        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs);
+        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, "");
     }
 
     public static Detector randomDetectorWithNoUser() {
@@ -105,7 +105,7 @@ public class TestHelpers {
         Instant enabledTime = enabled? Instant.now().truncatedTo(ChronoUnit.MILLIS): null;
         Instant lastUpdateTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
-        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, null, inputs);
+        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, null, inputs, "");
     }
 
     public static String toJsonStringWithUser(Detector detector) throws IOException {

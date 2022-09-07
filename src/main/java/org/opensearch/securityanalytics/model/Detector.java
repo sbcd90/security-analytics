@@ -36,6 +36,7 @@ public class Detector implements Writeable, ToXContentObject {
     private static final String INPUTS_FIELD = "inputs";
     private static final String LAST_UPDATE_TIME_FIELD = "last_update_time";
     private static final String ENABLED_TIME_FIELD = "enabled_time";
+    private static final String ALERTING_MONITOR_ID = "monitor_id";
 
     public static final String DETECTORS_INDEX = ".opensearch-detectors-config";
 
@@ -65,11 +66,13 @@ public class Detector implements Writeable, ToXContentObject {
 
     private List<DetectorInput> inputs;
 
+    private String monitorId;
+
     private final String type;
 
     public Detector(String id, Long version, String name, Boolean enabled, Schedule schedule,
                     Instant lastUpdateTime, Instant enabledTime, DetectorType detectorType,
-                    User user, List<DetectorInput> inputs) {
+                    User user, List<DetectorInput> inputs, String monitorId) {
         this.type = DETECTOR_TYPE;
 
         this.id = id != null? id: NO_ID;
@@ -82,6 +85,7 @@ public class Detector implements Writeable, ToXContentObject {
         this.detectorType = detectorType;
         this.user = user;
         this.inputs = inputs;
+        this.monitorId = monitorId;
 
         if (enabled) {
             Objects.requireNonNull(enabledTime);
@@ -99,7 +103,8 @@ public class Detector implements Writeable, ToXContentObject {
                 sin.readOptionalInstant(),
                 sin.readEnum(DetectorType.class),
                 sin.readBoolean()? new User(sin): null,
-                sin.readList(DetectorInput::readFrom)
+                sin.readList(DetectorInput::readFrom),
+                sin.readString()
         );
     }
 
@@ -126,6 +131,7 @@ public class Detector implements Writeable, ToXContentObject {
         for (DetectorInput it: inputs) {
             it.writeTo(out);
         }
+        out.writeString(monitorId);
     }
 
     public XContentBuilder toXContentWithUser(XContentBuilder builder, Params params) throws IOException {
@@ -214,6 +220,8 @@ public class Detector implements Writeable, ToXContentObject {
             builder.timeField(LAST_UPDATE_TIME_FIELD, String.format(Locale.getDefault(), "%s_in_millis", LAST_UPDATE_TIME_FIELD), lastUpdateTime.toEpochMilli());
         }
 
+        builder.field(ALERTING_MONITOR_ID, monitorId);
+
         if (params.paramAsBoolean("with_type", false)) {
             builder.endObject();
         }
@@ -236,6 +244,7 @@ public class Detector implements Writeable, ToXContentObject {
         Instant enabledTime = null;
         Boolean enabled = true;
         List<DetectorInput> inputs = new ArrayList<>();
+        String monitorId = null;
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
         while (xcp.nextToken() != XContentParser.Token.END_OBJECT) {
@@ -300,6 +309,9 @@ public class Detector implements Writeable, ToXContentObject {
                         lastUpdateTime = null;
                     }
                     break;
+                case ALERTING_MONITOR_ID:
+                    monitorId = xcp.text();
+                    break;
                 default:
                     xcp.skipChildren();
             }
@@ -321,7 +333,8 @@ public class Detector implements Writeable, ToXContentObject {
                     enabledTime,
                     DetectorType.valueOf(detectorType.toUpperCase(Locale.ROOT)),
                     user,
-                    inputs
+                    inputs,
+                    monitorId
                 );
     }
 
@@ -381,16 +394,20 @@ public class Detector implements Writeable, ToXContentObject {
         this.inputs = inputs;
     }
 
+    public void setMonitorId(String monitorId) {
+        this.monitorId = monitorId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Detector detector = (Detector) o;
-        return Objects.equals(id, detector.id) && Objects.equals(version, detector.version) && Objects.equals(name, detector.name) && Objects.equals(enabled, detector.enabled) && Objects.equals(schedule, detector.schedule) && Objects.equals(lastUpdateTime, detector.lastUpdateTime) && Objects.equals(enabledTime, detector.enabledTime) && detectorType == detector.detectorType && ((user == null && detector.user == null) || Objects.equals(user, detector.user)) && Objects.equals(inputs, detector.inputs) && Objects.equals(type, detector.type);
+        return Objects.equals(id, detector.id) && Objects.equals(version, detector.version) && Objects.equals(name, detector.name) && Objects.equals(enabled, detector.enabled) && Objects.equals(schedule, detector.schedule) && Objects.equals(lastUpdateTime, detector.lastUpdateTime) && Objects.equals(enabledTime, detector.enabledTime) && detectorType == detector.detectorType && ((user == null && detector.user == null) || Objects.equals(user, detector.user)) && Objects.equals(inputs, detector.inputs) && Objects.equals(type, detector.type) && Objects.equals(monitorId, detector.monitorId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, version, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, type);
+        return Objects.hash(id, version, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, type, monitorId);
     }
 }
