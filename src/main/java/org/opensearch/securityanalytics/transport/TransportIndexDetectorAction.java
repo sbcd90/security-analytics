@@ -46,6 +46,7 @@ import org.opensearch.securityanalytics.rules.objects.SigmaRule;
 import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
 import org.opensearch.securityanalytics.util.DetectorIndices;
 import org.opensearch.securityanalytics.util.IndexUtils;
+import org.opensearch.securityanalytics.util.RuleTopicIndices;
 import org.opensearch.securityanalytics.util.SecurityAnalyticsException;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
@@ -71,6 +72,8 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
 
     private final DetectorIndices detectorIndices;
 
+    private final RuleTopicIndices ruleTopicIndices;
+
     private final MapperApplier mapperApplier;
 
     private final ClusterService clusterService;
@@ -84,10 +87,11 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
     private static FileSystem fs;
 
     @Inject
-    public TransportIndexDetectorAction(TransportService transportService, Client client, ActionFilters actionFilters, DetectorIndices detectorIndices, MapperApplier mapperApplier, ClusterService clusterService, Settings settings) {
+    public TransportIndexDetectorAction(TransportService transportService, Client client, ActionFilters actionFilters, DetectorIndices detectorIndices, RuleTopicIndices ruleTopicIndices, MapperApplier mapperApplier, ClusterService clusterService, Settings settings) {
         super(IndexDetectorAction.NAME, transportService, actionFilters, IndexDetectorRequest::new);
         this.client = client;
         this.detectorIndices = detectorIndices;
+        this.ruleTopicIndices = ruleTopicIndices;
         this.mapperApplier = mapperApplier;
         this.clusterService = clusterService;
         this.settings = settings;
@@ -313,29 +317,42 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                             if (response.isAcknowledged()) {
                                 log.info(String.format(Locale.getDefault(), "Updated  %s with mappings.", logIndex));
 
-                                /**
-                                 * pass also ActionListener
-                                 */
                                 try {
-                                    importRules(request, new ActionListener<>() {
+                                    String ruleTopicIndex = String.format(Locale.getDefault(), ".%s-detectors-queries-%s", ruleTopic, UUID.randomUUID());
+                                    ruleTopicIndices.initRuleTopicIndex(ruleTopicIndex, new ActionListener<>() {
                                         @Override
-                                        public void onResponse(IndexMonitorResponse indexMonitorResponse) {
-                                            log.info("hit from security-analytics: call successful " + indexMonitorResponse.getId());
-                                            request.getDetector().setMonitorId(indexMonitorResponse.getId());
+                                        public void onResponse(CreateIndexResponse createIndexResponse) {
                                             try {
-                                                indexDetector();
-                                            } catch (IOException e) {
+                                                request.getDetector().setRuleTopicIndex(ruleTopicIndex);
+                                                importRules(request, new ActionListener<>() {
+                                                    @Override
+                                                    public void onResponse(IndexMonitorResponse indexMonitorResponse) {
+                                                        log.info("hit from security-analytics: call successful " + indexMonitorResponse.getId());
+                                                        request.getDetector().setMonitorId(indexMonitorResponse.getId());
+                                                        try {
+                                                            indexDetector();
+                                                        } catch (IOException e) {
+                                                            onFailures(e);
+                                                        }
+                                                    }
+
+                                                    @Override
+                                                    public void onFailure(Exception e) {
+                                                        log.info("hit from security-analytics: call failed " + e.getMessage());
+                                                        onFailures(e);
+                                                    }
+                                                });
+                                            } catch (URISyntaxException | IOException | SigmaError | InterruptedException | ExecutionException e) {
                                                 onFailures(e);
                                             }
                                         }
 
                                         @Override
                                         public void onFailure(Exception e) {
-                                            log.info("hit from security-analytics: call failed " + e.getMessage());
                                             onFailures(e);
                                         }
                                     });
-                                } catch (URISyntaxException | IOException | SigmaError | InterruptedException | ExecutionException e) {
+                                } catch (IOException e) {
                                     onFailures(e);
                                 }
                             } else {

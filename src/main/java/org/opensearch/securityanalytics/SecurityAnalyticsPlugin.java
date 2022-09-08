@@ -29,6 +29,7 @@ import org.opensearch.securityanalytics.resthandler.RestIndexDetectorAction;
 import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
 import org.opensearch.securityanalytics.transport.TransportIndexDetectorAction;
 import org.opensearch.securityanalytics.util.DetectorIndices;
+import org.opensearch.securityanalytics.util.RuleTopicIndices;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
@@ -41,6 +42,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
     public static final String DETECTOR_BASE_URI = "/_plugins/_security_analytics/detectors";
 
     private DetectorIndices detectorIndices;
+
+    private RuleTopicIndices ruleTopicIndices;
 
     private MapperApplier mapperApplier;
 
@@ -57,8 +60,9 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                                                IndexNameExpressionResolver indexNameExpressionResolver,
                                                Supplier<RepositoriesService> repositoriesServiceSupplier) {
         detectorIndices = new DetectorIndices(client.admin(), clusterService, threadPool);
+        ruleTopicIndices = new RuleTopicIndices(client.admin(), clusterService);
         mapperApplier = new MapperApplier(client.admin());
-        return List.of(detectorIndices, mapperApplier);
+        return List.of(detectorIndices, ruleTopicIndices, mapperApplier);
     }
 
     @Override
