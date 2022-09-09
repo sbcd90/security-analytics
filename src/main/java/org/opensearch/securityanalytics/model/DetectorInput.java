@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class DetectorInput implements Writeable, ToXContentObject {
 
@@ -27,10 +28,10 @@ public class DetectorInput implements Writeable, ToXContentObject {
 
     private static final String NO_DESCRIPTION = "";
 
-    private static final String DESCRIPTION_FIELD = "description";
-    private static final String INDICES_FIELD = "indices";
+    protected static final String DESCRIPTION_FIELD = "description";
+    protected static final String INDICES_FIELD = "indices";
     private static final String DETECTOR_INPUT_FIELD = "detector_input";
-    private static final String RULES_FIELD = "rules";
+    protected static final String RULES_FIELD = "rules";
 
     public static final NamedXContentRegistry.Entry XCONTENT_REGISTRY = new NamedXContentRegistry.Entry(
             DetectorInput.class,
@@ -56,7 +57,7 @@ public class DetectorInput implements Writeable, ToXContentObject {
         return Map.of(
                 DESCRIPTION_FIELD, description,
                 INDICES_FIELD, indices,
-                RULES_FIELD, rules.stream().map(DetectorRule::asTemplateArg)
+                RULES_FIELD, rules.stream().map(DetectorRule::asTemplateArg).collect(Collectors.toList())
         );
     }
 
@@ -124,8 +125,16 @@ public class DetectorInput implements Writeable, ToXContentObject {
         return new DetectorInput(sin);
     }
 
+    public String getDescription() {
+        return description;
+    }
+
     public List<String> getIndices() {
         return indices;
+    }
+
+    public List<DetectorRule> getRules() {
+        return rules;
     }
 
     @Override

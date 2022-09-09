@@ -4,7 +4,6 @@
  */
 package org.opensearch.securityanalytics.util;
 
-import org.locationtech.jts.util.Assert;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.opensearch.action.support.master.AcknowledgedResponse;
@@ -18,6 +17,7 @@ import org.opensearch.common.xcontent.XContentType;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,7 +50,9 @@ public class IndexUtils {
                         switch (xcp.currentName()) {
                             case SCHEMA_VERSION:
                                 int version = xcp.intValue();
-                                Assert.isTrue(version > -1);
+                                if (version < 0) {
+                                    throw new IllegalArgumentException(String.format(Locale.getDefault(), "%s cannot be negative", SCHEMA_VERSION));
+                                }
                                 return version;
                             default:
                                 xcp.nextToken();

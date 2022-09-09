@@ -7,9 +7,9 @@ package org.opensearch.securityanalytics.action;
 import org.junit.Assert;
 import org.opensearch.test.OpenSearchTestCase;
 
-public class IndexRulesActionTests extends OpenSearchTestCase {
+public class IndexDetectorActionTests extends OpenSearchTestCase {
 
-    public void testIndexRulesActionName() {
+    public void testIndexDetectorActionName() {
         Assert.assertNotNull(IndexDetectorAction.INSTANCE.name());
         Assert.assertEquals(IndexDetectorAction.INSTANCE.name(), IndexDetectorAction.NAME);
     }

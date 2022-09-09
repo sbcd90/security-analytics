@@ -59,7 +59,19 @@ public class IndexDetectorResponse extends ActionResponse implements ToXContentO
                 .endObject();
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
     public RestStatus getStatus() {
         return status;
+    }
+
+    public Detector getDetector() {
+        return detector;
     }
 }

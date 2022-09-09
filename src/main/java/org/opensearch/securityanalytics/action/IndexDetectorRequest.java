@@ -56,6 +56,10 @@ public class IndexDetectorRequest extends ActionRequest {
         detector.writeTo(out);
     }
 
+    public String getDetectorId() {
+        return detectorId;
+    }
+
     public RestRequest.Method getMethod() {
         return method;
     }

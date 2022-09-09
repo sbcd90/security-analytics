@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+import static org.opensearch.test.OpenSearchTestCase.randomInt;
+
 public class TestHelpers {
 
     static class AccessRoles {
@@ -26,35 +28,43 @@ public class TestHelpers {
     }
 
     public static Detector randomDetector() {
-        return randomDetector(null, null, null, null, null, null, null, null);
+        return randomDetector(null, null, null, null, null, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name) {
-        return randomDetector(name, null, null, null, null, null, null, null);
+        return randomDetector(name, null, null, null, null, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType) {
-        return randomDetector(name, detectorType, null, null, null, null, null, null);
+        return randomDetector(name, detectorType, null, null, null, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user) {
-        return randomDetector(name, detectorType, user, null, null, null, null, null);
+        return randomDetector(name, detectorType, user, null, null, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs) {
-        return randomDetector(name, detectorType, user, inputs, null, null, null, null);
+        return randomDetector(name, detectorType, user, inputs, null, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs, Schedule schedule) {
-        return randomDetector(name, detectorType, user, inputs, schedule, null, null, null);
+        return randomDetector(name, detectorType, user, inputs, schedule, null, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs, Schedule schedule, Boolean enabled) {
-        return randomDetector(name, detectorType, user, inputs, schedule, enabled, null, null);
+        return randomDetector(name, detectorType, user, inputs, schedule, enabled, null, null, null, null);
     }
 
     public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs, Schedule schedule, Boolean enabled, Instant enabledTime) {
-        return randomDetector(name, detectorType, user, inputs, schedule, enabled, enabledTime, null);
+        return randomDetector(name, detectorType, user, inputs, schedule, enabled, enabledTime, null, null, null);
+    }
+
+    public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs, Schedule schedule, Boolean enabled, Instant enabledTime, Instant lastUpdateTime) {
+        return randomDetector(name, detectorType, user, inputs, schedule, enabled, enabledTime, lastUpdateTime, null, null);
+    }
+
+    public static Detector randomDetector(String name, Detector.DetectorType detectorType, User user, List<DetectorInput> inputs, Schedule schedule, Boolean enabled, Instant enabledTime, Instant lastUpdateTime, String monitorId) {
+        return randomDetector(name, detectorType, user, inputs, schedule, enabled, enabledTime, lastUpdateTime, monitorId, null);
     }
 
     public static Detector randomDetector(String name,
@@ -64,7 +74,9 @@ public class TestHelpers {
                                           Schedule schedule,
                                           Boolean enabled,
                                           Instant enabledTime,
-                                          Instant lastUpdateTime) {
+                                          Instant lastUpdateTime,
+                                          String monitorId,
+                                          String ruleTopicIndex) {
         if (name == null) {
             name = OpenSearchRestTestCase.randomAlphaOfLength(10);
         }
@@ -91,9 +103,15 @@ public class TestHelpers {
         if (lastUpdateTime == null) {
             lastUpdateTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         }
+        if (monitorId == null) {
+            monitorId = OpenSearchRestTestCase.randomAlphaOfLength(10);
+        }
+        if (ruleTopicIndex == null) {
+            ruleTopicIndex = OpenSearchRestTestCase.randomAlphaOfLength(10);
+        }
 
 
-        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, "", "");
+        return new Detector(null, null, name, enabled, schedule, lastUpdateTime, enabledTime, detectorType, user, inputs, monitorId, ruleTopicIndex);
     }
 
     public static Detector randomDetectorWithNoUser() {
@@ -140,18 +158,57 @@ public class TestHelpers {
         return detectorTypes.get(Randomness.get().nextInt(detectorTypes.size()));
     }
 
+    public static DetectorInput randomDetectorInput() {
+        String description = OpenSearchRestTestCase.randomAlphaOfLength(randomInt(10));
+
+        List<String> indices = new ArrayList<>();
+        for (int i = 0; i < 10; ++i) {
+            indices.add(OpenSearchRestTestCase.randomAlphaOfLength(10));
+        }
+
+        List<DetectorRule> detectorRules = new ArrayList<>();
+        for (int i = 0; i < 10; ++i) {
+            detectorRules.add(randomDetectorRule());
+        }
+
+        return new DetectorInput(description, indices, detectorRules);
+    }
+
     public static DetectorRule randomDetectorRule() {
         String id = OpenSearchRestTestCase.randomAlphaOfLength(10);
         String rule = OpenSearchRestTestCase.randomAlphaOfLength(10);
-        String name = String.valueOf(OpenSearchTestCase.randomInt(5));
+        String name = String.valueOf(randomInt(5));
 
         List<String> tags = new ArrayList<>();
 
         int start = 0;
-        int end = OpenSearchTestCase.randomInt(10);
+        int end = randomInt(10);
         for (int idx = start; idx <= end; ++idx) {
             tags.add(OpenSearchRestTestCase.randomAlphaOfLength(10));
         }
+
+        return new DetectorRule(id, name, rule, tags);
+    }
+
+    public static DetectorRule randomDetectorRule(String name) {
+        String id = OpenSearchRestTestCase.randomAlphaOfLength(10);
+        String rule = OpenSearchRestTestCase.randomAlphaOfLength(10);
+
+        List<String> tags = new ArrayList<>();
+
+        int start = 0;
+        int end = randomInt(10);
+        for (int idx = start; idx <= end; ++idx) {
+            tags.add(OpenSearchRestTestCase.randomAlphaOfLength(10));
+        }
+
+        return new DetectorRule(id, name, rule, tags);
+    }
+
+    public static DetectorRule randomDetectorRule(List<String> tags) {
+        String id = OpenSearchRestTestCase.randomAlphaOfLength(10);
+        String rule = OpenSearchRestTestCase.randomAlphaOfLength(10);
+        String name = String.valueOf(randomInt(5));
 
         return new DetectorRule(id, name, rule, tags);
     }

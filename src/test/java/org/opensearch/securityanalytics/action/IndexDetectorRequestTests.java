@@ -14,10 +14,13 @@ import org.opensearch.test.OpenSearchTestCase;
 import java.io.IOException;
 import java.util.UUID;
 
-public class IndexRulesRequestTests extends OpenSearchTestCase {
+import static org.opensearch.securityanalytics.TestHelpers.randomDetector;
 
-    public void testIndexRulesPostRequest() throws IOException {
-/*        IndexDetectorRequest request = new IndexDetectorRequest(UUID.randomUUID().toString(), WriteRequest.RefreshPolicy.IMMEDIATE, RestRequest.Method.POST, );
+public class IndexDetectorRequestTests extends OpenSearchTestCase {
+
+    public void testIndexDetectorPostRequest() throws IOException {
+        String detectorId = UUID.randomUUID().toString();
+        IndexDetectorRequest request = new IndexDetectorRequest(detectorId, WriteRequest.RefreshPolicy.IMMEDIATE, RestRequest.Method.POST, randomDetector());
 
         Assert.assertNotNull(request);
 
@@ -26,6 +29,8 @@ public class IndexRulesRequestTests extends OpenSearchTestCase {
 
         StreamInput sin = StreamInput.wrap(out.bytes().toBytesRef().bytes);
         IndexDetectorRequest newRequest = new IndexDetectorRequest(sin);
-        Assert.assertEquals(RestRequest.Method.POST, newRequest.getMethod());*/
+        Assert.assertEquals(detectorId, request.getDetectorId());
+        Assert.assertEquals(RestRequest.Method.POST, newRequest.getMethod());
+        Assert.assertNotNull(newRequest.getDetector());
     }
 }
