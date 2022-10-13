@@ -15,7 +15,6 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.commons.alerting.model.IntervalSchedule;
 import org.opensearch.commons.alerting.model.Schedule;
 import org.opensearch.commons.authuser.User;
-import org.opensearch.securityanalytics.config.monitors.DetectorMonitorConfig;
 import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.model.DetectorInput;
 import org.opensearch.securityanalytics.model.DetectorRule;
@@ -43,8 +42,12 @@ public class TestHelpers {
         return randomDetector(null, null, null, List.of(), List.of(), null, null, null, null);
     }
 
-    public static Detector randomDetector(List<DetectorInput> inputs) {
+    public static Detector randomDetectorWithInputs(List<DetectorInput> inputs) {
         return randomDetector(null, null, null, inputs, List.of(), null, null, null, null);
+    }
+
+    public static Detector randomDetectorWithTriggers(List<DetectorTrigger> triggers) {
+        return randomDetector(null, null, null, List.of(), triggers, null, null, null, null);
     }
 
     public static Detector randomDetector(String name,

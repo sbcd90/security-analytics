@@ -6,10 +6,12 @@ package org.opensearch.securityanalytics.model;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.common.ParseField;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
@@ -45,6 +47,12 @@ public class DetectorTrigger implements Writeable, ToXContentObject {
     private static final String RULE_SEV_LEVELS_FIELD = "sev_levels";
     private static final String RULE_TAGS_FIELD = "tags";
     private static final String ACTIONS_FIELD = "actions";
+
+    public static final NamedXContentRegistry.Entry XCONTENT_REGISTRY = new NamedXContentRegistry.Entry(
+            DetectorTrigger.class,
+            new ParseField(ID_FIELD),
+            DetectorTrigger::parse
+    );
 
     public DetectorTrigger(String id, String name, List<String> ruleTypes, List<String> ruleSeverityLevels, List<String> tags, List<Action> actions) {
         this.id = id == null? UUIDs.base64UUID(): id;
@@ -203,7 +211,10 @@ public class DetectorTrigger implements Writeable, ToXContentObject {
                 ruleSevLevelBuilder.append(" || ");
             }
         }
-        condition.append(" && ").append("(").append(ruleSevLevelBuilder).append(")");
+
+        if (size > 0) {
+            condition.append(" && ").append("(").append(ruleSevLevelBuilder).append(")");
+        }
 
         StringBuilder tagBuilder = new StringBuilder();
         size = tags.size();
@@ -213,7 +224,10 @@ public class DetectorTrigger implements Writeable, ToXContentObject {
                 ruleSevLevelBuilder.append(" || ");
             }
         }
-        condition.append(" && ").append("(").append(tagBuilder).append(")");
+
+        if (size > 0) {
+            condition.append(" && ").append("(").append(tagBuilder).append(")");
+        }
 
         return new Script(condition.toString());
     }

@@ -31,6 +31,7 @@ import org.opensearch.securityanalytics.action.SearchRuleAction;
 import org.opensearch.securityanalytics.mapper.MapperApplier;
 import org.opensearch.securityanalytics.action.CreateIndexMappingsAction;
 import org.opensearch.securityanalytics.action.GetIndexMappingsAction;
+import org.opensearch.securityanalytics.model.DetectorTrigger;
 import org.opensearch.securityanalytics.model.Rule;
 import org.opensearch.securityanalytics.resthandler.RestDeleteDetectorAction;
 import org.opensearch.securityanalytics.resthandler.RestDeleteRuleAction;
@@ -135,6 +136,7 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
         return List.of(
                 Detector.XCONTENT_REGISTRY,
                 DetectorInput.XCONTENT_REGISTRY,
+                DetectorTrigger.XCONTENT_REGISTRY,
                 Rule.XCONTENT_REGISTRY
         );
     }
