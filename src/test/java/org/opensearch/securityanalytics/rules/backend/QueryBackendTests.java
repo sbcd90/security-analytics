@@ -15,6 +15,7 @@ import org.opensearch.test.OpenSearchTestCase;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class QueryBackendTests extends OpenSearchTestCase {
 
@@ -873,7 +874,45 @@ public class QueryBackendTests extends OpenSearchTestCase {
                 "    - attack.persistence\n" +
                 "    - attack.t1197\n" +
                 "    - attack.s0190", false));
-        Assert.assertEquals(true, true);
+        Assert.assertEquals("(c-useragent: Microsoft_ws_BITS\\/*) AND ((NOT ((r-dns: *.com) OR (r-dns: *.net) OR (r-dns: *.org) OR (r-dns: *.scdn.co))))", queries.get(0));
+    }
+
+    public void testRuleFieldsMatchQueries() throws IOException, SigmaError {
+        OSQueryBackend queryBackend = testBackend();
+        List<Object> queries = queryBackend.convertRule(SigmaRule.fromYaml("title: CVE-2020-0688 Exploitation via Eventlog\n" +
+                "id: d6266bf5-935e-4661-b477-78772735a7cb\n" +
+                "status: experimental\n" +
+                "description: Detects the exploitation of Microsoft Exchange vulnerability as described in CVE-2020-0688 \n" +
+                "references:\n" +
+                "    - https://www.trustedsec.com/blog/detecting-cve-20200688-remote-code-execution-vulnerability-on-microsoft-exchange-server/\n" +
+                "    - https://cyberpolygon.com/materials/okhota-na-ataki-ms-exchange-chast-2-cve-2020-0688-cve-2020-16875-cve-2021-24085/\n" +
+                "author: Florian Roth, wagga\n" +
+                "date: 2020/02/29\n" +
+                "modified: 2021/10/13\n" +
+                "tags:\n" +
+                "    - attack.initial_access\n" +
+                "    - attack.t1190\n" +
+                "logsource:\n" +
+                "    product: windows\n" +
+                "    service: application\n" +
+                "detection:\n" +
+                "    selection1:\n" +
+                "        EventID: 4\n" +
+                "        Provider_Name: 'MSExchange Control Panel'\n" +
+                "        Level: Error\n" +
+                "    selection2:\n" +
+                "        - '&__VIEWSTATE='\n" +
+                "    condition: selection1 and selection2\n" +
+                "falsepositives:\n" +
+                "    - Unknown\n" +
+                "level: high", false));
+
+        Map<String, Object> queryFields = queryBackend.getQueryFields();
+        Assert.assertTrue(queryFields.containsKey("_0"));
+        Assert.assertTrue(queryFields.containsKey("Level"));
+        Assert.assertTrue(queryFields.containsKey("Provider_Name"));
+        Assert.assertTrue(queryFields.containsKey("event_uid"));
+        Assert.assertEquals("((event_uid: 4) AND (Provider_Name: \"MSExchange_ws_Control_ws_Panel\") AND (Level: \"Error\")) AND (_0: \"&__VIEWSTATE\\=\")", queries.get(0));
     }
 
     private OSQueryBackend testBackend() throws IOException {
