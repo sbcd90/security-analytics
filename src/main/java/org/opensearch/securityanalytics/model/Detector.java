@@ -516,6 +516,10 @@ public class Detector implements Writeable, ToXContentObject {
         return monitorIds;
     }
 
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     public void setId(String id) {
         this.id = id;
     }
