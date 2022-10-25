@@ -4,6 +4,7 @@
  */
 package org.opensearch.securityanalytics;
 
+import org.apache.http.HttpHost;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -17,11 +18,14 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.WarningsHandler;
 import org.opensearch.cluster.ClusterModule;
 import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.common.Strings;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.collect.ImmutableOpenMap;
+import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
@@ -33,6 +37,9 @@ import org.opensearch.common.xcontent.XContentParserUtils;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.commons.alerting.model.ScheduledJob;
 import org.opensearch.commons.alerting.util.IndexUtilsKt;
+import org.opensearch.commons.rest.SecureRestClientBuilder;
+import org.opensearch.commons.ConfigConstants;
+import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.search.SearchHit;
@@ -42,7 +49,11 @@ import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.model.Rule;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 
+
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,6 +73,23 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
 
     protected String createTestIndex(String index, String mapping, Settings settings) throws IOException {
         createIndex(index, settings, mapping);
+        return index;
+    }
+
+    protected String createTestIndex(RestClient client, String index, String mapping, Settings settings) throws IOException {
+        Request request = new Request("PUT", "/" + index);
+        String entity = "{\"settings\": " + Strings.toString(settings);
+        if (mapping != null) {
+            entity = entity + ",\"mappings\" : {" + mapping + "}";
+        }
+
+        entity = entity + "}";
+        if (!settings.getAsBoolean(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)) {
+            expectSoftDeletesWarning(request, index);
+        }
+
+        request.setJsonEntity(entity);
+        client.performRequest(request);
         return index;
     }
 
@@ -847,4 +875,139 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
                 "    }\n" +
                 "  }";
     }
+
+    protected boolean isHttps() {
+        return Boolean.parseBoolean(System.getProperty("https", "false"));
+    }
+
+    protected boolean securityEnabled() {
+        return Boolean.parseBoolean(System.getProperty("security", "false"));
+    }
+
+    @Override
+    protected String getProtocol() {
+        if (isHttps()) {
+            return "https";
+        } else {
+            return "http";
+        }
+    }
+
+    @Override
+    protected Settings restAdminSettings() {
+
+        return Settings
+                .builder()
+                .put("http.port", 9200)
+                .put(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_ENABLED, isHttps())
+                .put(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_PEMCERT_FILEPATH, "sample.pem")
+                .put(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH, "test-kirk.jks")
+                .put(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_PASSWORD, "changeit")
+                .put(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_KEYPASSWORD, "changeit")
+                .build();
+    }
+
+
+
+    @Override
+    protected RestClient buildClient(Settings settings, HttpHost[] hosts) throws IOException
+    {
+        if (securityEnabled()) {
+            String keystore = settings.get(ConfigConstants.OPENSEARCH_SECURITY_SSL_HTTP_KEYSTORE_FILEPATH);
+            if  (keystore != null) {
+                // create adminDN (super-admin) client
+                //log.info("keystore not null");
+                URI uri = null;
+                try {
+                    uri = SecurityAnalyticsRestTestCase.class.getClassLoader().getResource("sample.pem").toURI();
+                }
+                catch(URISyntaxException e) {
+                    return null;
+                }
+                Path configPath = PathUtils.get(uri).getParent().toAbsolutePath();
+                return new SecureRestClientBuilder(settings, configPath).setSocketTimeout(60000).build();
+            }
+            else {
+                // create client with passed user
+                String userName = System.getProperty("user");
+                String password = System.getProperty("password");
+                return new SecureRestClientBuilder(hosts, isHttps(), userName, password).setSocketTimeout(60000).build();
+            }
+        }
+        else {
+            RestClientBuilder builder = RestClient.builder(hosts);
+            configureClient(builder, settings);
+            builder.setStrictDeprecationMode(true);
+            return builder.build();
+        }
+
+    }
+
+
+    protected void createCustomRole(String name, String clusterPermissions) throws IOException {
+        Request request = new Request("PUT", String.format(Locale.getDefault(), "/_plugins/_security/api/roles/%s", name));
+        String entity = "{\n" +
+                "\"cluster_permissions\": [\n" +
+                "\"" + clusterPermissions + "\"\n" +
+                "]\n" +
+                "}";
+        request.setJsonEntity(entity);
+        client().performRequest(request);
+    }
+
+    protected void  createUser(String name, String passwd, String[] backendRoles) throws IOException {
+        Request request = new Request("PUT", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
+        String broles = String.join(",", backendRoles);
+        //String roles = String.join(",", customRoles);
+        String entity = " {\n" +
+                "\"password\": \"" + passwd + "\",\n" +
+                "\"backend_roles\": [\"" + broles + "\"],\n" +
+                "\"attributes\": {\n" +
+                "}} ";
+        request.setJsonEntity(entity);
+        client().performRequest(request);
+    }
+
+    protected void  createUserRolesMapping(String role, String[] users) throws IOException {
+        Request request = new Request("PUT", String.format(Locale.getDefault(), "/_plugins/_security/api/rolesmapping/%s", role));
+        String usersArr= String.join(",", users);
+        String entity = "{\n" +
+                "  \"backend_roles\" : [  ],\n" +
+                "  \"hosts\" : [  ],\n" +
+                "\"users\": [\"" + usersArr + "\"]\n" +
+                "}";
+        request.setJsonEntity(entity);
+        client().performRequest(request);
+    }
+
+    protected void  enableOrDisableFilterBy(String trueOrFalse) throws IOException {
+        Request request = new Request("PUT", "_cluster/settings");
+        String entity = "{\"persistent\":{\"plugins.security_analytics.filter_by_backend_roles\" : " + trueOrFalse + "}}";
+        request.setJsonEntity(entity);
+        client().performRequest(request);
+    }
+
+    protected void  createUserWithDataAndCustomRole(String userName, String userPasswd, String roleName, String[] backendRoles, String clusterPermissions ) throws IOException {
+        String[] users = {userName};
+        createUser(userName, userPasswd, backendRoles);
+        createCustomRole(roleName, clusterPermissions);
+        createUserRolesMapping(roleName, users);
+    }
+
+    protected void  createUserWithData(String userName, String userPasswd, String roleName, String[] backendRoles ) throws IOException {
+        String[] users = {userName};
+        createUser(userName, userPasswd, backendRoles);
+        createUserRolesMapping(roleName, users);
+    }
+
+
+
+    protected void deleteUser(String name) throws IOException {
+        Request request = new Request("DELETE", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
+        client().performRequest(request);
+    }
+
+
+
+
 }

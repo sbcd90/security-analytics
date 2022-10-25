@@ -156,7 +156,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
     @Override
     public List<Setting<?>> getSettings() {
         return List.of(
-                SecurityAnalyticsSettings.INDEX_TIMEOUT
+                SecurityAnalyticsSettings.INDEX_TIMEOUT,
+                SecurityAnalyticsSettings.FILTER_BY_BACKEND_ROLES
         );
     }
 
