@@ -4,6 +4,15 @@
  */
 package org.opensearch.securityanalytics.rules.backend;
 
+import org.opensearch.common.UUIDs;
+import org.opensearch.commons.alerting.aggregation.bucketselectorext.BucketSelectorExtAggregationBuilder;
+import org.opensearch.commons.alerting.model.BucketLevelTrigger;
+import org.opensearch.script.Script;
+import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.SumAggregationBuilder;
 import org.opensearch.securityanalytics.rules.aggregation.AggregationItem;
 import org.opensearch.securityanalytics.rules.condition.ConditionAND;
 import org.opensearch.securityanalytics.rules.condition.ConditionFieldEqualsValueExpression;
@@ -12,6 +21,7 @@ import org.opensearch.securityanalytics.rules.condition.ConditionNOT;
 import org.opensearch.securityanalytics.rules.condition.ConditionOR;
 import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
 import org.opensearch.securityanalytics.rules.condition.ConditionType;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
 import org.opensearch.securityanalytics.rules.types.SigmaBool;
 import org.opensearch.securityanalytics.rules.types.SigmaCIDRExpression;
@@ -86,6 +96,8 @@ public class OSQueryBackend extends QueryBackend {
 
     private String bucketTriggerQuery;
 
+    private String bucketTriggerScript;
+
     private static final String groupExpression = "(%s)";
     private static final Map<String, String> compareOperators = Map.of(
             SigmaCompareExpression.CompareOperators.GT, "gt",
@@ -124,6 +136,7 @@ public class OSQueryBackend extends QueryBackend {
         this.aggQuery = "\"aggs\":{\"%s\":{\"terms\":{\"field\":\"%s\"},\"aggs\":{\"%s\":{\"%s\":{\"field\":\"%s\"}}}}}";
         this.aggCountQuery = "\"aggs\":{\"%s\":{\"terms\":{\"field\":\"%s\"}}}";
         this.bucketTriggerQuery = "{\"buckets_path\":{\"%s\":\"%s\"},\"parent_bucket_path\":\"%s\",\"script\":{\"source\":\"params.%s %s %s\",\"lang\":\"painless\"}}";
+        this.bucketTriggerScript = "params.%s %s %s";
     }
 
     @Override
@@ -346,23 +359,58 @@ public class OSQueryBackend extends QueryBackend {
     }*/
 
     @Override
-    public Object convertAggregation(AggregationItem aggregation) {
+    public Object convertAggregation(AggregationItem aggregation) throws SigmaConditionError {
         String fmtAggQuery;
+        TermsAggregationBuilder aggBuilder = new TermsAggregationBuilder("result_agg");
         String fmtBucketTriggerQuery;
+        BucketLevelTrigger bucketLevelTrigger;
         if (aggregation.getAggFunction().equals("count")) {
             if (aggregation.getAggField().equals("*") && aggregation.getGroupByField() == null) {
                 fmtAggQuery = String.format(Locale.getDefault(), aggCountQuery, "result_agg", "_index");
+                aggBuilder.field("_index");
             } else {
                 fmtAggQuery = String.format(Locale.getDefault(), aggCountQuery, "result_agg", aggregation.getGroupByField());
+                aggBuilder.field(aggregation.getGroupByField());
             }
             fmtBucketTriggerQuery = String.format(Locale.getDefault(), bucketTriggerQuery, "_cnt", "_cnt", "result_agg", "_cnt", aggregation.getCompOperator(), aggregation.getThreshold());
+
+            String id = UUIDs.base64UUID();
+            BucketSelectorExtAggregationBuilder bucketSelectorExtAggregationBuilder = new BucketSelectorExtAggregationBuilder(id, Map.of("_cnt", "_cnt"),
+                    new Script(String.format(Locale.getDefault(), bucketTriggerScript, "_cnt", aggregation.getCompOperator(), aggregation.getThreshold())), "result_agg", null);
+            bucketLevelTrigger = new BucketLevelTrigger(id, "sigma_rule_trigger", "1", bucketSelectorExtAggregationBuilder, List.of());
         } else {
             fmtAggQuery = String.format(Locale.getDefault(), aggQuery, "result_agg", aggregation.getGroupByField(), aggregation.getAggField(), aggregation.getAggFunction(), aggregation.getAggField());
+            aggBuilder.field(aggregation.getGroupByField());
+
+            switch (aggregation.getAggFunction()) {
+                case "sum":
+                    aggBuilder.subAggregation(new SumAggregationBuilder(aggregation.getAggField()).field(aggregation.getAggField()));
+                    break;
+                case "min":
+                    aggBuilder.subAggregation(new MinAggregationBuilder(aggregation.getAggField()).field(aggregation.getAggField()));
+                    break;
+                case "max":
+                    aggBuilder.subAggregation(new MaxAggregationBuilder(aggregation.getAggField()).field(aggregation.getAggField()));
+                    break;
+                case "avg":
+                    aggBuilder.subAggregation(new AvgAggregationBuilder(aggregation.getAggField()).field(aggregation.getAggField()));
+                    break;
+                default:
+                    throw new SigmaConditionError("Aggregation function is not supported");
+
+            }
             fmtBucketTriggerQuery = String.format(Locale.getDefault(), bucketTriggerQuery, aggregation.getAggField(), aggregation.getAggField(), "result_agg", aggregation.getAggField(), aggregation.getCompOperator(), aggregation.getThreshold());
+
+            String id = UUIDs.base64UUID();
+            BucketSelectorExtAggregationBuilder bucketSelectorExtAggregationBuilder = new BucketSelectorExtAggregationBuilder(id, Map.of(aggregation.getAggField(), aggregation.getAggField()),
+                    new Script(String.format(Locale.getDefault(), bucketTriggerScript, aggregation.getAggField(), aggregation.getCompOperator(), aggregation.getThreshold())), "result_agg", null);
+            bucketLevelTrigger = new BucketLevelTrigger(id, "sigma_rule_trigger", "1", bucketSelectorExtAggregationBuilder, List.of());
         }
         AggregationQueries aggQueries = new AggregationQueries();
         aggQueries.setAggQuery(fmtAggQuery);
+        aggQueries.setAggBuilder(aggBuilder);
         aggQueries.setBucketTriggerQuery(fmtBucketTriggerQuery);
+        aggQueries.setBucketLevelTrigger(bucketLevelTrigger);
         return aggQueries;
     }
 
@@ -420,18 +468,34 @@ public class OSQueryBackend extends QueryBackend {
 
         private String aggQuery;
 
+        private TermsAggregationBuilder aggBuilder;
+
         private String bucketTriggerQuery;
+
+        private BucketLevelTrigger bucketLevelTrigger;
 
         public void setAggQuery(String aggQuery) {
             this.aggQuery = aggQuery;
+        }
+
+        public void setAggBuilder(TermsAggregationBuilder aggBuilder) {
+            this.aggBuilder = aggBuilder;
         }
 
         public String getAggQuery() {
             return aggQuery;
         }
 
+        public TermsAggregationBuilder getAggBuilder() {
+            return aggBuilder;
+        }
+
         public void setBucketTriggerQuery(String bucketTriggerQuery) {
             this.bucketTriggerQuery = bucketTriggerQuery;
+        }
+
+        public void setBucketLevelTrigger(BucketLevelTrigger bucketLevelTrigger) {
+            this.bucketLevelTrigger = bucketLevelTrigger;
         }
 
         public String getBucketTriggerQuery() {

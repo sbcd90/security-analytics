@@ -12,6 +12,7 @@ import org.opensearch.securityanalytics.rules.condition.ConditionNOT;
 import org.opensearch.securityanalytics.rules.condition.ConditionOR;
 import org.opensearch.securityanalytics.rules.condition.ConditionType;
 import org.opensearch.securityanalytics.rules.condition.ConditionValueExpression;
+import org.opensearch.securityanalytics.rules.exceptions.SigmaConditionError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaError;
 import org.opensearch.securityanalytics.rules.exceptions.SigmaValueError;
 import org.opensearch.securityanalytics.rules.objects.SigmaCondition;
@@ -261,5 +262,5 @@ public abstract class QueryBackend {
 
 /*   public abstract Object convertConditionValQueryExpr(ConditionValueExpression condition);*/
 
-    public abstract Object convertAggregation(AggregationItem aggregation);
+    public abstract Object convertAggregation(AggregationItem aggregation) throws SigmaConditionError;
 }
