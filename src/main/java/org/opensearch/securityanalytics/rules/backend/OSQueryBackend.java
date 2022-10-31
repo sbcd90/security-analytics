@@ -501,5 +501,9 @@ public class OSQueryBackend extends QueryBackend {
         public String getBucketTriggerQuery() {
             return bucketTriggerQuery;
         }
+
+        public BucketLevelTrigger getBucketLevelTrigger() {
+            return bucketLevelTrigger;
+        }
     }
 }
