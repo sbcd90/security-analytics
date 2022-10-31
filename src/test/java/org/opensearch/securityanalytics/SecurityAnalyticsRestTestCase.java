@@ -22,6 +22,7 @@ import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.WarningsHandler;
 import org.opensearch.cluster.ClusterModule;
 import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.common.Strings;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.collect.ImmutableOpenMap;
 import org.opensearch.common.io.PathUtils;
@@ -38,6 +39,7 @@ import org.opensearch.commons.alerting.model.ScheduledJob;
 import org.opensearch.commons.alerting.util.IndexUtilsKt;
 import org.opensearch.commons.rest.SecureRestClientBuilder;
 import org.opensearch.commons.ConfigConstants;
+import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.search.SearchHit;
@@ -71,6 +73,23 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
 
     protected String createTestIndex(String index, String mapping, Settings settings) throws IOException {
         createIndex(index, settings, mapping);
+        return index;
+    }
+
+    protected String createTestIndex(RestClient client, String index, String mapping, Settings settings) throws IOException {
+        Request request = new Request("PUT", "/" + index);
+        String entity = "{\"settings\": " + Strings.toString(settings);
+        if (mapping != null) {
+            entity = entity + ",\"mappings\" : {" + mapping + "}";
+        }
+
+        entity = entity + "}";
+        if (!settings.getAsBoolean(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)) {
+            expectSoftDeletesWarning(request, index);
+        }
+
+        request.setJsonEntity(entity);
+        client.performRequest(request);
         return index;
     }
 
@@ -923,6 +942,11 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         client().performRequest(request);
     }
 
+    protected void deleteUser(String name) throws IOException {
+        Request request = new Request("DELETE", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
+        client().performRequest(request);
+    }
+
     protected void  enableOrDisableFilterBy(String trueOrFalse) throws IOException {
         Request request = new Request("PUT", "_cluster/settings");
         String entity = "{\"persistent\":{\"plugins.security_analytics.filter_by_backend_roles\" : " + trueOrFalse + "}}";
@@ -936,5 +960,14 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         createUser(userName, userPasswd, backendRoles, customRoles);
     }
 
-
+    protected void createUserRoleMapping(String role, String user) throws IOException {
+        Request request = new Request("PUT", String.format("/_plugins/_security/api/rolesmapping/%s", role));
+        String entity = "{                                  \n" +
+                "  \"backend_roles\" : [  ],\n" +
+                "  \"hosts\" : [  ],\n" +
+                "  \"users\" : [\"" + user + "\"]\n" +
+                "}";
+        request.setJsonEntity(entity);
+        client().performRequest(request);
+    }
 }
