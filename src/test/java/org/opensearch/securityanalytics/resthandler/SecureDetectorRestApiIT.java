@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
+import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.commons.rest.SecureRestClientBuilder;
@@ -31,21 +32,28 @@ import static org.opensearch.securityanalytics.TestHelpers.randomDoc;
 
 public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
 
-    static String DETECTOR_FULL_ACCESS_ROLE = "detector_full_access";
-    static String DETECTOR_READ_ACCESS_ROLE = "detector_read_access";
+    static String SECURITY_ANALYTICS_FULL_ACCESS_ROLE = "security_analytics_full_access";
+    static String SECURITY_ANALYTICS_READ_ACCESS_ROLE = "security_analytics_read_access";
     static String TEST_HR_BACKEND_ROLE = "HR";
+    static String CUSTOM_HR_ROLE = "HR";
+
+    static String TEST_IT_BACKEND_ROLE = "IT";
+
+
 
     static Map<String, String> roleToPermissionsMap = Map.ofEntries(
-            Map.entry(DETECTOR_FULL_ACCESS_ROLE, "cluster:admin/opendistro/securityanalytics/detector/*"),
-            Map.entry(DETECTOR_READ_ACCESS_ROLE, "cluster:admin/opendistro/securityanalytics/detector/read")
+            Map.entry(SECURITY_ANALYTICS_FULL_ACCESS_ROLE, "cluster:admin/opendistro/securityanalytics/detector/*"),
+            Map.entry(SECURITY_ANALYTICS_READ_ACCESS_ROLE, "cluster:admin/opendistro/securityanalytics/detector/read")
     );
 
     private RestClient userClient;
-    private final String user = "userTwo";
+    private final String user = "userOne";
+
 
     @Before
     public void create() throws IOException {
-        createUser(user, user, new String[]{}, new String[]{});
+        String[] backendRoles = { TEST_HR_BACKEND_ROLE };
+        createUserWithData(user, user, SECURITY_ANALYTICS_FULL_ACCESS_ROLE, backendRoles );
         if (userClient == null) {
             userClient = new SecureRestClientBuilder(getClusterHosts().toArray(new HttpHost[]{}), isHttps(), user, user).setSocketTimeout(60000).build();
         }
@@ -58,9 +66,9 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
     }
 
     @SuppressWarnings("unchecked")
-    public void testCreatingADetector() throws IOException {
-//        createUserRoleMapping("detectors_full_access", user);
-        createUserRoleMapping("alerting_full_access", user);
+    public void testCreateDetectorWithFullAccess() throws IOException {
+        String[] users = {user};
+        //createUserRolesMapping("alerting_full_access", users);
         String index = createTestIndex(client(), randomIndex(), windowsIndexMapping(), Settings.EMPTY);
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -73,12 +81,12 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
                         "}"
         );
 
-        Response response = client().performRequest(createMappingRequest);
+        Response response = userClient.performRequest(createMappingRequest);
         assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
 
         Detector detector = randomDetector(getRandomPrePackagedRules());
 
-        Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
+        Response createResponse = makeRequest(userClient, "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
         Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
 
         Map<String, Object> responseBody = asMap(createResponse);
@@ -111,6 +119,46 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
 
         int noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
         Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        // try to do get detector as a user with read access
+        String userRead = "userRead";
+        String[] backendRoles = { TEST_IT_BACKEND_ROLE };
+        createUserWithData( userRead, userRead, SECURITY_ANALYTICS_READ_ACCESS_ROLE, backendRoles );
+        RestClient userReadOnlyClient = new SecureRestClientBuilder(getClusterHosts().toArray(new HttpHost[]{}), isHttps(), userRead, userRead).setSocketTimeout(60000).build();
+        Response getResponse = makeRequest(userReadOnlyClient, "GET", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + createdId, Collections.emptyMap(), null);
+        Map<String, Object> getResponseBody = asMap(getResponse);
+        Assert.assertEquals(createdId, getResponseBody.get("_id"));
+
+
+        // Enable backend filtering and try to read detector as a user with no backend roles matching the user who created the detector
+        enableOrDisableFilterBy("true");
+        try {
+            getResponse = makeRequest(userReadOnlyClient, "GET", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + createdId, Collections.emptyMap(), null);
+        } catch (ResponseException e)
+        {
+            assertEquals("Get detector failed", RestStatus.FORBIDDEN, restStatus(e.getResponse()));
+        }
+        finally {
+            userReadOnlyClient.close();
+            deleteUser(userRead);
+        }
+
+        // recreate user with matching backend roles and try again
+        String[] newBackendRoles = { TEST_HR_BACKEND_ROLE };
+        createUserWithData( userRead, userRead, SECURITY_ANALYTICS_READ_ACCESS_ROLE, newBackendRoles );
+        userReadOnlyClient = new SecureRestClientBuilder(getClusterHosts().toArray(new HttpHost[]{}), isHttps(), userRead, userRead).setSocketTimeout(60000).build();
+        getResponse = makeRequest(userReadOnlyClient, "GET", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + createdId, Collections.emptyMap(), null);
+        getResponseBody = asMap(getResponse);
+        Assert.assertEquals(createdId, getResponseBody.get("_id"));
+
+        userReadOnlyClient.close();
+        deleteUser(userRead);
     }
 
+    public void testCreateDetectorWithReadAccess() throws IOException {
+        String user = "user1";
+        String[] backendRoles = { TEST_HR_BACKEND_ROLE };
+        //  createUserWithDataAndCustomRole(user, user, CUSTOM_HR_ROLE, backendRoles, roleToPermissionsMap.get(DETECTOR_FULL_ACCESS_ROLE) );
+        Assert.assertEquals(1, 1);
+    }
 }

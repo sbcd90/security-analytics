@@ -955,22 +955,28 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         client().performRequest(request);
     }
 
-    protected void  createUser(String name, String passwd, String[] backendRoles, String[] customRoles) throws IOException {
+    protected void  createUser(String name, String passwd, String[] backendRoles) throws IOException {
         Request request = new Request("PUT", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
         String broles = String.join(",", backendRoles);
-        String roles = String.join(",", customRoles);
+        //String roles = String.join(",", customRoles);
         String entity = " {\n" +
                 "\"password\": \"" + passwd + "\",\n" +
-                "\"backend_roles\": [" + broles + "],\n" +
-                "\"opendistro_security_roles\": [" + roles + "],\n" +
+                "\"backend_roles\": [\"" + broles + "\"],\n" +
                 "\"attributes\": {\n" +
                 "}} ";
         request.setJsonEntity(entity);
         client().performRequest(request);
     }
 
-    protected void deleteUser(String name) throws IOException {
-        Request request = new Request("DELETE", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
+    protected void  createUserRolesMapping(String role, String[] users) throws IOException {
+        Request request = new Request("PUT", String.format(Locale.getDefault(), "/_plugins/_security/api/rolesmapping/%s", role));
+        String usersArr= String.join(",", users);
+        String entity = "{\n" +
+                "  \"backend_roles\" : [  ],\n" +
+                "  \"hosts\" : [  ],\n" +
+                "\"users\": [\"" + usersArr + "\"]\n" +
+                "}";
+        request.setJsonEntity(entity);
         client().performRequest(request);
     }
 
@@ -981,20 +987,27 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         client().performRequest(request);
     }
 
-    protected void  createUserWithData(String userName, String userPasswd, String roleName, String[] backendRoles, String clusterPermissions ) throws IOException {
+    protected void  createUserWithDataAndCustomRole(String userName, String userPasswd, String roleName, String[] backendRoles, String clusterPermissions ) throws IOException {
+        String[] users = {userName};
+        createUser(userName, userPasswd, backendRoles);
         createCustomRole(roleName, clusterPermissions);
-        String[] customRoles = { roleName };
-        createUser(userName, userPasswd, backendRoles, customRoles);
+        createUserRolesMapping(roleName, users);
     }
 
-    protected void createUserRoleMapping(String role, String user) throws IOException {
-        Request request = new Request("PUT", String.format("/_plugins/_security/api/rolesmapping/%s", role));
-        String entity = "{                                  \n" +
-                "  \"backend_roles\" : [  ],\n" +
-                "  \"hosts\" : [  ],\n" +
-                "  \"users\" : [\"" + user + "\"]\n" +
-                "}";
-        request.setJsonEntity(entity);
+    protected void  createUserWithData(String userName, String userPasswd, String roleName, String[] backendRoles ) throws IOException {
+        String[] users = {userName};
+        createUser(userName, userPasswd, backendRoles);
+        createUserRolesMapping(roleName, users);
+    }
+
+
+
+    protected void deleteUser(String name) throws IOException {
+        Request request = new Request("DELETE", String.format(Locale.getDefault(), "/_plugins/_security/api/internalusers/%s", name));
         client().performRequest(request);
     }
+
+
+
+
 }
