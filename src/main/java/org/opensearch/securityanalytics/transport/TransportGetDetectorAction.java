@@ -121,7 +121,7 @@ public class TransportGetDetectorAction extends HandledTransportAction<GetDetect
                                 TransportGetDetectorAction.this.filterByEnabled
                         )
                         ) {
-                            actionListener.onFailure(SecurityAnalyticsException.wrap(new OpenSearchStatusException("Do not have permissions to resource", RestStatus.FORBIDDEN)));
+                            actionListener.onFailure(new OpenSearchStatusException("Do not have permissions to resource", RestStatus.FORBIDDEN));
                             return;
                         }
                     }
