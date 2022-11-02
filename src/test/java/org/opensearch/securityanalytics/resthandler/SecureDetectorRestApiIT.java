@@ -154,11 +154,4 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         userReadOnlyClient.close();
         deleteUser(userRead);
     }
-
-    public void testCreateDetectorWithReadAccess() throws IOException {
-        String user = "user1";
-        String[] backendRoles = { TEST_HR_BACKEND_ROLE };
-        //  createUserWithDataAndCustomRole(user, user, CUSTOM_HR_ROLE, backendRoles, roleToPermissionsMap.get(DETECTOR_FULL_ACCESS_ROLE) );
-        Assert.assertEquals(1, 1);
-    }
 }
