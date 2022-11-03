@@ -11,6 +11,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicHeader;
 import org.junit.Assert;
+import org.junit.After;
 import org.opensearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.Request;
@@ -34,6 +35,7 @@ import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentParserUtils;
+import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.commons.alerting.model.ScheduledJob;
 import org.opensearch.commons.alerting.util.IndexUtilsKt;
@@ -1007,6 +1009,43 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         client().performRequest(request);
     }
 
+    @Override
+    protected boolean preserveIndicesUponCompletion() {
+        return true;
+    }
+
+    boolean preserveODFEIndicesAfterTest() {
+        return false;
+    }
+
+    @After
+    protected void wipeAllODFEIndices()  throws IOException {
+        if (preserveODFEIndicesAfterTest()) return;
+
+        Response response = client().performRequest(new Request("GET", "/_cat/indices?format=json&expand_wildcards=all"));
+
+        XContentType xContentType = XContentType.fromMediaType(response.getEntity().getContentType().getValue());
+        XContentParser parser = xContentType.xContent().createParser(
+                NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
+                response.getEntity().getContent()
+        );
+
+
+            for (Object index : parser.list()) {
+                Map<String, Object>  jsonObject = (Map<String, Object>) index;
+
+                String indexName = jsonObject.get("index").toString();
+                // .opendistro_security isn't allowed to delete from cluster
+                if (!".opendistro_security".equals(indexName)) {
+                    Request request = new Request("DELETE", String.format(Locale.getDefault(), "/%s", indexName));
+                    // TODO: remove PERMISSIVE option after moving system index access to REST API call
+                    RequestOptions.Builder options = RequestOptions.DEFAULT.toBuilder();
+                    options.setWarningsHandler(WarningsHandler.PERMISSIVE);
+                    request.setOptions(options.build());
+                    adminClient().performRequest(request);
+                }
+            }
+        }
 
 
 
