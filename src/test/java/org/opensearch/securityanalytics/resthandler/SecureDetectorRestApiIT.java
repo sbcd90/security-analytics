@@ -156,16 +156,16 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
 
         //Search on id should give one result
 
-        //String queryJson = "{ \"query\": { \"match\": { \"_id\" : \"" + createdId + "\"} } }";
+        String queryJson = "{ \"query\": { \"match\": { \"_id\" : \"" + createdId + "\"} } }";
 //        String queryJson = "{ \"query\": { \"match_all\": { } } }";
 //
-//        HttpEntity requestEntity = new NStringEntity(queryJson, ContentType.APPLICATION_JSON);
-//        Response searchResponse = makeRequest(userReadOnlyClient, "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + "_search", Collections.emptyMap(), requestEntity);
-//        Map<String, Object> searchResponseBody = asMap(searchResponse);
-//        Assert.assertNotNull("response is not null", searchResponseBody);
-//        Map<String, Object> searchResponseHits = (Map) searchResponseBody.get("hits");
-//        Map<String, Object> searchResponseTotal = (Map) searchResponseHits.get("total");
-//        Assert.assertEquals(1, searchResponseTotal.get("value"));
+        HttpEntity requestEntity = new NStringEntity(queryJson, ContentType.APPLICATION_JSON);
+        Response searchResponse = makeRequest(userReadOnlyClient, "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + "_search", Collections.emptyMap(), requestEntity);
+        Map<String, Object> searchResponseBody = asMap(searchResponse);
+        Assert.assertNotNull("response is not null", searchResponseBody);
+        Map<String, Object> searchResponseHits = (Map) searchResponseBody.get("hits");
+        Map<String, Object> searchResponseTotal = (Map) searchResponseHits.get("total");
+        Assert.assertEquals(1, searchResponseTotal.get("value"));
 
         userReadOnlyClient.close();
         deleteUser(userRead);

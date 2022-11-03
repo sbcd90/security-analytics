@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 
+import org.apache.lucene.search.join.ScoreMode;
 import org.opensearch.commons.ConfigConstants;
 import org.opensearch.commons.authuser.User;
 import org.opensearch.threadpool.ThreadPool;
@@ -104,23 +105,9 @@ public interface SecureTransportAction {
     }
 
     default void addFilter(User user,SearchSourceBuilder searchSourceBuilder,String fieldName)  {
-        //BoolQueryBuilder boolQueryBuilder = (new BoolQueryBuilder()).must(searchSourceBuilder.query());
-        //BoolQueryBuilder boolQueryBuilder = (new BoolQueryBuilder()).must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
-        //boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
-
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery().must(searchSourceBuilder.query());
-
-        //BoolQueryBuilder bqb = new BoolQueryBuilder();
-        //bqb.should().add(new BoolQueryBuilder().must(new TermsQueryBuilder(fieldName, user.getBackendRoles())));
-        //boolQueryBuilder.filter(bqb);
-
-        boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
-
-        //boolQueryBuilder.filter(new BoolQueryBuilder().must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles())));
-
+        boolQueryBuilder.filter(QueryBuilders.nestedQuery("detector", QueryBuilders.termsQuery(fieldName, user.getBackendRoles()), ScoreMode.Avg));
         searchSourceBuilder.query(boolQueryBuilder);
-
-
     }
 
 }
