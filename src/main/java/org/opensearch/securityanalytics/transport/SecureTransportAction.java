@@ -104,9 +104,23 @@ public interface SecureTransportAction {
     }
 
     default void addFilter(User user,SearchSourceBuilder searchSourceBuilder,String fieldName)  {
-        BoolQueryBuilder boolQueryBuilder = (new BoolQueryBuilder()).must(searchSourceBuilder.query());
+        //BoolQueryBuilder boolQueryBuilder = (new BoolQueryBuilder()).must(searchSourceBuilder.query());
+        //BoolQueryBuilder boolQueryBuilder = (new BoolQueryBuilder()).must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
+        //boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
+
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery().must(searchSourceBuilder.query());
+
+        //BoolQueryBuilder bqb = new BoolQueryBuilder();
+        //bqb.should().add(new BoolQueryBuilder().must(new TermsQueryBuilder(fieldName, user.getBackendRoles())));
+        //boolQueryBuilder.filter(bqb);
+
         boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
+
+        //boolQueryBuilder.filter(new BoolQueryBuilder().must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles())));
+
         searchSourceBuilder.query(boolQueryBuilder);
+
+
     }
 
 }

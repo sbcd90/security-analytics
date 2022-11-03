@@ -4,8 +4,11 @@
  */
 package org.opensearch.securityanalytics.resthandler;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.client.Request;
@@ -150,6 +153,19 @@ public class SecureDetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         getResponse = makeRequest(userReadOnlyClient, "GET", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + createdId, Collections.emptyMap(), null);
         getResponseBody = asMap(getResponse);
         Assert.assertEquals(createdId, getResponseBody.get("_id"));
+
+        //Search on id should give one result
+
+        //String queryJson = "{ \"query\": { \"match\": { \"_id\" : \"" + createdId + "\"} } }";
+//        String queryJson = "{ \"query\": { \"match_all\": { } } }";
+//
+//        HttpEntity requestEntity = new NStringEntity(queryJson, ContentType.APPLICATION_JSON);
+//        Response searchResponse = makeRequest(userReadOnlyClient, "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + "_search", Collections.emptyMap(), requestEntity);
+//        Map<String, Object> searchResponseBody = asMap(searchResponse);
+//        Assert.assertNotNull("response is not null", searchResponseBody);
+//        Map<String, Object> searchResponseHits = (Map) searchResponseBody.get("hits");
+//        Map<String, Object> searchResponseTotal = (Map) searchResponseHits.get("total");
+//        Assert.assertEquals(1, searchResponseTotal.get("value"));
 
         userReadOnlyClient.close();
         deleteUser(userRead);
