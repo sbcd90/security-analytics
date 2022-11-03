@@ -114,9 +114,9 @@ public interface SecureTransportAction {
         //bqb.should().add(new BoolQueryBuilder().must(new TermsQueryBuilder(fieldName, user.getBackendRoles())));
         //boolQueryBuilder.filter(bqb);
 
-        boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
+        //boolQueryBuilder.filter(QueryBuilders.termsQuery(fieldName, user.getBackendRoles()));
 
-        //boolQueryBuilder.filter(new BoolQueryBuilder().must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles())));
+        boolQueryBuilder.filter(new BoolQueryBuilder().must(QueryBuilders.termsQuery(fieldName, user.getBackendRoles())));
 
         searchSourceBuilder.query(boolQueryBuilder);
 
