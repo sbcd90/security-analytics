@@ -377,13 +377,6 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         Assert.assertEquals(1, getFindingsBody.get("total_findings"));
         List<?> findings = (List<?>) getFindingsBody.get("findings");
         Assert.assertEquals(findings.size(), 1);
-        HashMap<String, Object> finding = (HashMap<String, Object>) findings.get(0);
-        Assert.assertTrue(finding.containsKey("queries"));
-        HashMap<String, Object> docLevelQuery = (HashMap<String, Object>) ((List<?>) finding.get("queries")).get(0);
-        String ruleId = docLevelQuery.get("id").toString();
-        Response getResponse = makeRequest(client(), "GET", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + detectorId, Collections.emptyMap(), null);
-        String getDetectorResponseString = new String(getResponse.getEntity().getContent().readAllBytes());
-        Assert.assertTrue(getDetectorResponseString.contains(ruleId));
     }
     public void testUpdateADetector() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
