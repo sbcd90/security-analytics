@@ -111,7 +111,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
      * 2. Detector without rules and monitors created successfully
      * @throws IOException
      */
-    public void testCreateDetectorWithoutRules() throws IOException {
+/*    public void testCreateDetectorWithoutRules() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -152,7 +152,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("rule_topic_index"));
         Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("findings_index"));
         Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("alert_index"));
-    }
+    }*/
 
     public void testGettingADetector() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());

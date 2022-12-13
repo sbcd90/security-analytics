@@ -253,6 +253,7 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
 
         Map<String, Object> responseBody = asMap(searchResponse);
         List<Map<String, Object>> hits = ((List<Map<String, Object>>) ((Map<String, Object>) responseBody.get("hits")).get("hits"));
+        logger.info("hit here-" + hits.stream().map(hit -> hit.get("_id").toString()).collect(Collectors.toList()).size());
         return hits.stream().map(hit -> hit.get("_id").toString()).collect(Collectors.toList());
     }
 

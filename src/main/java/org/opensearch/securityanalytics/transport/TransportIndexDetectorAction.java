@@ -368,6 +368,11 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
             DocLevelQuery docLevelQuery = new DocLevelQuery(id, name, actualQuery, tags);
             docLevelQueries.add(docLevelQuery);
         }
+        int size = docLevelQueries.size();
+        if (size < 5) {
+            throw new RuntimeException("failed while creating doc-level monitors");
+        }
+
         DocLevelMonitorInput docLevelMonitorInput = new DocLevelMonitorInput(detector.getName(), List.of(logIndexToQueries.getKey()), docLevelQueries);
         docLevelMonitorInputs.add(docLevelMonitorInput);
 
@@ -594,6 +599,10 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         }
 
         void start() {
+            int size = request.getDetector().getInputs().get(0).getPrePackagedRules().size();
+            if (size < 5) {
+                throw new RuntimeException("failed here at index detector");
+            }
             try {
 
                 TransportIndexDetectorAction.this.threadPool.getThreadContext().stashContext();

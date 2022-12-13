@@ -47,7 +47,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      * 4. Verifies the findings
      * @throws IOException
      */
-    public void testRemoveDocLevelRuleAddAggregationRules_verifyFindings_success() throws IOException {
+/*    public void testRemoveDocLevelRuleAddAggregationRules_verifyFindings_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -164,7 +164,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
 
         String findingIndex = ((Map<String, Object>)((List)getFindingsBody.get("findings")).get(0)).get("index").toString();
         assertEquals(index, findingIndex);
-    }
+    }*/
 
     /**
      * 1. Creates detector with 1 aggregation rule and one bucket level monitor based on the aggregation rule
@@ -173,7 +173,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      * 4. Verifies the findings
      * @throws IOException
      */
-    public void testReplaceAggregationRuleWithDocRule_verifyFindings_success() throws IOException {
+/*    public void testReplaceAggregationRuleWithDocRule_verifyFindings_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -311,7 +311,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      *
      * @throws IOException
      */
-    public void testRemoveAllRulesAndUpdateDetector_success() throws IOException {
+/*    public void testRemoveAllRulesAndUpdateDetector_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -389,7 +389,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      *
      * @throws IOException
      */
-    public void testAddNewAggregationRule_verifyFindings_success() throws IOException {
+/*    public void testAddNewAggregationRule_verifyFindings_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -497,7 +497,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      *
      * @throws IOException
      */
-    public void testDeleteAggregationRule_verifyFindings_success() throws IOException {
+ /*   public void testDeleteAggregationRule_verifyFindings_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
         // Execute CreateMappingsAction to add alias mapping for index
         Request createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
@@ -612,7 +612,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      * 5. Verifies findings
      * @throws IOException
      */
-    public void testReplaceAggregationRule_verifyFindings_success() throws IOException {
+/*    public void testReplaceAggregationRule_verifyFindings_success() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
         // Execute CreateMappingsAction to add alias mapping for index
         Request createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
@@ -816,7 +816,7 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
      *
      * @throws IOException
      */
-    public void testMultipleAggregationAndDocRules_findingSuccess() throws IOException {
+/*    public void testMultipleAggregationAndDocRules_findingSuccess() throws IOException {
         String index = createTestIndex(randomIndex(), windowsIndexMapping());
 
         // Execute CreateMappingsAction to add alias mapping for index
@@ -981,5 +981,5 @@ public class DetectorMonitorRestApiIT extends SecurityAnalyticsRestTestCase {
 
         List<String> triggerResultBucketKeys = ((Map<String, Object>)((Map<String, Object>) ((Map<String, Object>)executeResults.get("trigger_results")).get(ruleId)).get("agg_result_buckets")).keySet().stream().collect(Collectors.toList());
         assertEquals(expectedTriggerResult, triggerResultBucketKeys);
-    }
+    }*/
 }
