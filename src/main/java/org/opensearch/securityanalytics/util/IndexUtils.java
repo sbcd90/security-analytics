@@ -34,6 +34,7 @@ public class IndexUtils {
     public static Boolean detectorIndexUpdated = false;
     public static Boolean customRuleIndexUpdated = false;
     public static Boolean prePackagedRuleIndexUpdated = false;
+    public static Boolean correlationIndexUpdated = false;
 
     public static void detectorIndexUpdated() {
         detectorIndexUpdated = true;
@@ -46,6 +47,8 @@ public class IndexUtils {
     public static void prePackagedRuleIndexUpdated() {
         prePackagedRuleIndexUpdated = true;
     }
+
+    public static void correlationIndexUpdated() { correlationIndexUpdated = true; }
 
     public static Integer getSchemaVersion(String mapping) throws IOException {
         XContentParser xcp = XContentType.JSON.xContent().createParser(

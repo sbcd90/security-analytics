@@ -226,8 +226,9 @@ public class SecureFindingRestApiIT extends SecurityAnalyticsRestTestCase {
             String monitorId1 = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
             // Detector 2 - NETWORK
             DetectorInput inputNetflow = new DetectorInput("windows detector for security analytics", List.of("netflow_test"), Collections.emptyList(),
-                getPrePackagedRules("network").stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getPrePackagedRules("network").stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
             Detector detector2 = randomDetectorWithTriggers(
+
                 getPrePackagedRules("network"),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("network"), List.of(), List.of(), List.of(), List.of())),
                 Detector.DetectorType.NETWORK,

@@ -46,7 +46,7 @@ public class SigmaBase64OffsetModifier extends SigmaValueModifier {
                 byte[] valBytes = ((SigmaString) val.getLeft()).getBytes();
 
                 for (int j = 0; j < i; ++j) {
-                    valBytes = ArrayUtils.insert(0, valBytes, (byte) ' ');
+                    valBytes = SigmaBase64OffsetModifier.insert(0, valBytes, (byte) ' ');
                 }
                 String valB64Encode = Base64.getEncoder().encodeToString(valBytes);
                 valB64Encode = valB64Encode.substring(startOffsets.get(i), valB64Encode.length() + endOffsets.get((((SigmaString) val.getLeft()).length() + i) % 3));
@@ -56,5 +56,28 @@ public class SigmaBase64OffsetModifier extends SigmaValueModifier {
             return Either.left(new SigmaExpansion(values));
         }
         return null;
+    }
+
+    private static byte[] insert(final int index, final byte[] array, final byte... values) {
+        if (array == null) {
+            return null;
+        }
+        if (ArrayUtils.isEmpty(values)) {
+            return ArrayUtils.clone(array);
+        }
+        if (index < 0 || index > array.length) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Length: " + array.length);
+        }
+
+        final byte[] result = new byte[array.length + values.length];
+
+        System.arraycopy(values, 0, result, index, values.length);
+        if (index > 0) {
+            System.arraycopy(array, 0, result, 0, index);
+        }
+        if (index < array.length) {
+            System.arraycopy(array, index, result, index + values.length, array.length - index);
+        }
+        return result;
     }
 }

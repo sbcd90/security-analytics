@@ -1,0 +1,28 @@
+title: Palo Alto Networks Sample Rule
+id: 78b3756a-7854-4ef7-8a55-7b0124a02e2d
+description: Palo Alto Networks Sample Rule.
+author: Austin Songer @austinsonger
+status: experimental
+date: 2021/07/24
+modified: 2021/08/19
+references:
+  - https://github.com/elastic/detection-rules/pull/1145/files
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/API_Operations.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLogging.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/setting-repl-config-perm-overview.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html
+logsource:
+  product: palo alto networks
+detection:
+  selection:
+    SessionEndReason: 'tcp-fin'
+    DeviceName|startswith: 'vmseries01'
+  condition: selection
+level: low
+tags:
+  - attack.exfiltration
+  - attack.t1537
+falsepositives:
+  - A S3 configuration change may be done by a system or network administrator. Verify whether the user identity, user agent, and/or hostname should be making changes in your environment. S3 configuration change from unfamiliar users or hosts should be investigated. If known behavior is causing false positives, it can be exempted from the rule.

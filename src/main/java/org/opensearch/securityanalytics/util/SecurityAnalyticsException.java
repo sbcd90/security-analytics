@@ -39,7 +39,8 @@ public class SecurityAnalyticsException extends OpenSearchException {
     }
 
     public static OpenSearchException wrap(Exception ex) {
-        log.error(String.format(Locale.getDefault(), "Security Analytics error: %s", ex.getMessage()));
+        ex.printStackTrace();
+        log.error(ex);
 
         String friendlyMsg = "Unknown error";
         RestStatus status = RestStatus.INTERNAL_SERVER_ERROR;
@@ -52,7 +53,8 @@ public class SecurityAnalyticsException extends OpenSearchException {
     }
 
     public static OpenSearchException wrap(OpenSearchException ex) {
-        log.error(String.format(Locale.getDefault(), "Security Analytics error: %s", ex.getMessage()));
+        ex.printStackTrace();
+        log.error(ex);
 
         String friendlyMsg = "Unknown error";
         RestStatus status = ex.status();
@@ -61,7 +63,7 @@ public class SecurityAnalyticsException extends OpenSearchException {
             friendlyMsg = ex.getMessage();
         }
 
-        return new SecurityAnalyticsException(friendlyMsg, status, new Exception(String.format(Locale.getDefault(), "%s: %s", ex.getClass().getName(), ex.getMessage())));
+        return new SecurityAnalyticsException(friendlyMsg, status, new Exception(String.format(Locale.getDefault(), "%s: %s", ex.getClass().getName(), ex)));
     }
 
     public static OpenSearchException wrap(List<Exception> ex) {

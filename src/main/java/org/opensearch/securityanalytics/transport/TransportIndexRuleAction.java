@@ -103,6 +103,7 @@ public class TransportIndexRuleAction extends HandledTransportAction<IndexRuleRe
         this.settings = settings;
 
         this.indexTimeout = SecurityAnalyticsSettings.INDEX_TIMEOUT.get(this.settings);
+        this.clusterService.getClusterSettings().addSettingsUpdateConsumer(SecurityAnalyticsSettings.INDEX_TIMEOUT, it -> indexTimeout = it);
     }
 
     @Override

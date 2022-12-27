@@ -7,6 +7,8 @@ package org.opensearch.securityanalytics;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionResponse;
@@ -22,15 +24,23 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.commons.securityanalytics.action.SecurityAnalyticsActions;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.index.IndexSettings;
+import org.opensearch.index.codec.CodecServiceFactory;
+import org.opensearch.index.mapper.Mapper;
 import org.opensearch.plugins.ActionPlugin;
+import org.opensearch.plugins.EnginePlugin;
+import org.opensearch.plugins.MapperPlugin;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptService;
 import org.opensearch.securityanalytics.action.AckAlertsAction;
+import org.opensearch.securityanalytics.action.CorrelatedFindingAction;
 import org.opensearch.securityanalytics.action.CreateIndexMappingsAction;
 import org.opensearch.securityanalytics.action.DeleteDetectorAction;
 import org.opensearch.securityanalytics.action.GetAlertsAction;
@@ -41,13 +51,18 @@ import org.opensearch.securityanalytics.action.GetMappingsViewAction;
 import org.opensearch.securityanalytics.action.IndexDetectorAction;
 import org.opensearch.securityanalytics.action.SearchDetectorAction;
 import org.opensearch.securityanalytics.action.UpdateIndexMappingsAction;
+import org.opensearch.securityanalytics.correlation.index.codec.CorrelationCodecService;
+import org.opensearch.securityanalytics.correlation.index.mapper.CorrelationVectorFieldMapper;
+import org.opensearch.securityanalytics.correlation.index.query.CorrelationQueryBuilder;
 import org.opensearch.securityanalytics.indexmanagment.DetectorIndexManagementService;
 import org.opensearch.securityanalytics.action.ValidateRulesAction;
 import org.opensearch.securityanalytics.mapper.MapperService;
 import org.opensearch.securityanalytics.resthandler.RestAcknowledgeAlertsAction;
 import org.opensearch.securityanalytics.resthandler.RestGetFindingsAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchCorrelationAction;
 import org.opensearch.securityanalytics.resthandler.RestValidateRulesAction;
 import org.opensearch.securityanalytics.transport.TransportAcknowledgeAlertsAction;
+import org.opensearch.securityanalytics.transport.TransportCorrelateFindingAction;
 import org.opensearch.securityanalytics.transport.TransportCreateIndexMappingsAction;
 import org.opensearch.securityanalytics.transport.TransportGetFindingsAction;
 import org.opensearch.securityanalytics.action.DeleteRuleAction;
@@ -60,6 +75,7 @@ import org.opensearch.securityanalytics.resthandler.RestIndexRuleAction;
 import org.opensearch.securityanalytics.resthandler.RestSearchRuleAction;
 import org.opensearch.securityanalytics.transport.TransportDeleteRuleAction;
 import org.opensearch.securityanalytics.transport.TransportIndexRuleAction;
+import org.opensearch.securityanalytics.transport.TransportSearchCorrelationAction;
 import org.opensearch.securityanalytics.transport.TransportSearchRuleAction;
 import org.opensearch.securityanalytics.transport.TransportUpdateIndexMappingsAction;
 import org.opensearch.securityanalytics.transport.TransportGetIndexMappingsAction;
@@ -81,13 +97,14 @@ import org.opensearch.securityanalytics.transport.TransportGetMappingsViewAction
 import org.opensearch.securityanalytics.transport.TransportIndexDetectorAction;
 import org.opensearch.securityanalytics.transport.TransportSearchDetectorAction;
 import org.opensearch.securityanalytics.transport.TransportValidateRulesAction;
+import org.opensearch.securityanalytics.util.CorrelationIndices;
 import org.opensearch.securityanalytics.util.DetectorIndices;
 import org.opensearch.securityanalytics.util.RuleIndices;
 import org.opensearch.securityanalytics.util.RuleTopicIndices;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
-public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
+public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin, MapperPlugin, SearchPlugin, EnginePlugin {
 
     public static final String PLUGINS_BASE_URI = "/_plugins/_security_analytics";
     public static final String MAPPER_BASE_URI = PLUGINS_BASE_URI + "/mappings";
@@ -96,10 +113,13 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
     public static final String ALERTS_BASE_URI = PLUGINS_BASE_URI + "/alerts";
     public static final String DETECTOR_BASE_URI = PLUGINS_BASE_URI + "/detectors";
     public static final String RULE_BASE_URI = PLUGINS_BASE_URI + "/rules";
+    public static final String FINDINGS_CORRELATE_URI = FINDINGS_BASE_URI + "/correlate";
 
     private DetectorIndices detectorIndices;
 
     private RuleTopicIndices ruleTopicIndices;
+
+    private CorrelationIndices correlationIndices;
 
     private MapperService mapperService;
 
@@ -121,9 +141,10 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                                                Supplier<RepositoriesService> repositoriesServiceSupplier) {
         detectorIndices = new DetectorIndices(client.admin(), clusterService, threadPool);
         ruleTopicIndices = new RuleTopicIndices(client, clusterService);
+        correlationIndices = new CorrelationIndices(client.admin(), clusterService);
         mapperService = new MapperService(client.admin().indices(), clusterService, indexNameExpressionResolver);
         ruleIndices = new RuleIndices(client, clusterService, threadPool);
-        return List.of(detectorIndices, ruleTopicIndices, ruleIndices, mapperService);
+        return List.of(detectorIndices, ruleTopicIndices, ruleIndices, correlationIndices, mapperService);
     }
 
     @Override
@@ -154,7 +175,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                 new RestIndexRuleAction(),
                 new RestSearchRuleAction(),
                 new RestDeleteRuleAction(),
-                new RestValidateRulesAction()
+                new RestValidateRulesAction(),
+                new RestSearchCorrelationAction()
         );
     }
 
@@ -165,6 +187,27 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                 DetectorInput.XCONTENT_REGISTRY,
                 Rule.XCONTENT_REGISTRY
         );
+    }
+
+    @Override
+    public Map<String, Mapper.TypeParser> getMappers() {
+        return Collections.singletonMap(
+                CorrelationVectorFieldMapper.CONTENT_TYPE,
+                new CorrelationVectorFieldMapper.TypeParser()
+        );
+    }
+
+    @Override
+    public Optional<CodecServiceFactory> getCustomCodecServiceFactory(IndexSettings indexSettings) {
+        if (indexSettings.getValue(SecurityAnalyticsSettings.IS_CORRELATION_INDEX_SETTING)) {
+            return Optional.of(CorrelationCodecService::new);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<QuerySpec<?>> getQueries() {
+        return Collections.singletonList(new QuerySpec<>(CorrelationQueryBuilder.NAME, CorrelationQueryBuilder::new, CorrelationQueryBuilder::fromXContent));
     }
 
     @Override
@@ -183,7 +226,9 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                 SecurityAnalyticsSettings.FINDING_HISTORY_MAX_DOCS,
                 SecurityAnalyticsSettings.FINDING_HISTORY_INDEX_MAX_AGE,
                 SecurityAnalyticsSettings.FINDING_HISTORY_ROLLOVER_PERIOD,
-                SecurityAnalyticsSettings.FINDING_HISTORY_RETENTION_PERIOD
+                SecurityAnalyticsSettings.FINDING_HISTORY_RETENTION_PERIOD,
+                SecurityAnalyticsSettings.IS_CORRELATION_INDEX_SETTING,
+                SecurityAnalyticsSettings.CORRELATION_TIME_WINDOW
         );
     }
 
@@ -204,7 +249,9 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin {
                 new ActionPlugin.ActionHandler<>(IndexRuleAction.INSTANCE, TransportIndexRuleAction.class),
                 new ActionPlugin.ActionHandler<>(SearchRuleAction.INSTANCE, TransportSearchRuleAction.class),
                 new ActionPlugin.ActionHandler<>(DeleteRuleAction.INSTANCE, TransportDeleteRuleAction.class),
-                new ActionPlugin.ActionHandler<>(ValidateRulesAction.INSTANCE, TransportValidateRulesAction.class)
+                new ActionPlugin.ActionHandler<>(ValidateRulesAction.INSTANCE, TransportValidateRulesAction.class),
+                new ActionPlugin.ActionHandler<>(SecurityAnalyticsActions.CORRELATE_FINDING_ACTION_TYPE, TransportCorrelateFindingAction.class),
+                new ActionPlugin.ActionHandler<>(CorrelatedFindingAction.INSTANCE, TransportSearchCorrelationAction.class)
         );
     }
 }

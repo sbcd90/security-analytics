@@ -27,6 +27,9 @@ import org.opensearch.search.SearchHit;
 import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
 import org.opensearch.securityanalytics.SecurityAnalyticsRestTestCase;
 import org.opensearch.securityanalytics.config.monitors.DetectorMonitorConfig;
+import org.opensearch.securityanalytics.model.CorrelatedIndex;
+import org.opensearch.securityanalytics.model.CorrelationField;
+import org.opensearch.securityanalytics.model.CorrelationInfo;
 import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.model.DetectorInput;
 import org.opensearch.securityanalytics.model.DetectorRule;
@@ -126,7 +129,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         Response response = client().performRequest(createMappingRequest);
         assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(java.util.UUID.randomUUID().toString())),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector detector = randomDetectorWithInputs(List.of(input));
 
         try {
@@ -285,7 +288,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
 
         String createdId = responseBody.get("_id").toString();
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(createdId)),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector detector = randomDetectorWithInputs(List.of(input));
 
         createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -345,7 +348,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         String customAvgRuleId = createRule(productIndexAvgAggRule());
 
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(customAvgRuleId)),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector detector = randomDetectorWithInputs(List.of(input));
 
         Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -465,7 +468,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         String createdId = responseBody.get("_id").toString();
 
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(createdId)),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector updatedDetector = randomDetectorWithInputs(List.of(input));
 
         Response updateResponse = makeRequest(client(), "PUT", SecurityAnalyticsPlugin.DETECTOR_BASE_URI + "/" + detectorId, Collections.emptyMap(), toHttpEntity(updatedDetector));
@@ -498,7 +501,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         );
 
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector updatedDetector = randomDetectorWithInputs(List.of(input));
 
         try {
@@ -510,7 +513,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
 
     public void testUpdateADetectorWithIndexNotExists() throws IOException {
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector updatedDetector = randomDetectorWithInputs(List.of(input));
 
         try {
@@ -719,7 +722,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         String customAvgRuleId = createRule(productIndexAvgAggRule());
 
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(customAvgRuleId)),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector detector = randomDetectorWithInputs(List.of(input));
 
         Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -822,7 +825,7 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         String customAvgRuleId = createRule(productIndexAvgAggRule());
 
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(customAvgRuleId)),
-                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         Detector detector = randomDetectorWithInputs(List.of(input));
 
         Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -887,5 +890,517 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         Assert.assertEquals(0, getFindingsBody.get("total_findings"));
         List<?> findings = (List<?>) getFindingsBody.get("findings");
         Assert.assertEquals(findings.size(), 0); //there should be no findings as doc is not in time range of current run
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testCreatingADetectorWithString() throws IOException {
+        String index = createTestIndex(randomIndex(), windowsIndexMapping());
+
+        // Execute CreateMappingsAction to add alias mapping for index
+        Request createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
+        // both req params and req body are supported
+        createMappingRequest.setJsonEntity(
+                "{ \"index_name\":\"" + index + "\"," +
+                        "  \"rule_topic\":\"" + randomDetectorType() + "\", " +
+                        "  \"partial\":true" +
+                        "}"
+        );
+
+        Response response = client().performRequest(createMappingRequest);
+        assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
+
+        String detector = "{\n" +
+                "  \"detector_type\": \"test_windows\",\n" +
+                "  \"schedule\": {\n" +
+                "    \"period\": {\n" +
+                "      \"unit\": \"MINUTES\",\n" +
+                "      \"interval\": 5\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"triggers\": [\n" +
+                "    {\n" +
+                "      \"types\": [\n" +
+                "        \"test_windows\"\n" +
+                "      ],\n" +
+                "      \"sev_levels\": [],\n" +
+                "      \"tags\": [],\n" +
+                "      \"name\": \"test-trigger\",\n" +
+                "      \"actions\": [],\n" +
+                "      \"id\": \"-7qq4IUB-4_RZvw4YKwU\",\n" +
+                "      \"ids\": [],\n" +
+                "      \"severity\": \"1\"\n" +
+                "    }\n" +
+                "  ],\n" +
+                "  \"enabled\": false,\n" +
+                "  \"type\": \"detector\",\n" +
+                "  \"enabled_time\": null,\n" +
+                "  \"name\": \"kohSwkIlKG\",\n" +
+                "  \"inputs\": [\n" +
+                "    {\n" +
+                "      \"detector_input\": {\n" +
+                "        \"description\": \"windows detector for security analytics\",\n" +
+                "        \"indices\": [\n" +
+                "          \"windows\"\n" +
+                "        ],\n" +
+                "        \"pre_packaged_rules\": [\n" +
+                "          {\n" +
+                "            \"id\": \"06724b9a-52fc-11ed-bdc3-0242ac120002\"\n" +
+                "          },\n" +
+                "          {\n" +
+                "            \"id\": \"e5a6b256-3e47-40fc-89d2-7a477edd6915\"\n" +
+                "          },\n" +
+                "          {\n" +
+                "            \"id\": \"5a919691-7302-437f-8e10-1fe088afa145\"\n" +
+                "          },\n" +
+                "          {\n" +
+                "            \"id\": \"c6e91a02-d771-4a6d-a700-42587e0b1095\"\n" +
+                "          },\n" +
+                "          {\n" +
+                "            \"id\": \"36a037c4-c228-4866-b6a3-48eb292b9955\"\n" +
+                "          }\n" +
+                "        ],\n" +
+                "        \"custom_rules\": []\n" +
+                "      }\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}";
+
+        Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), new StringEntity(detector, ContentType.APPLICATION_JSON));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        Map<String, Object> responseBody = asMap(createResponse);
+
+        String createdId = responseBody.get("_id").toString();
+        int createdVersion = Integer.parseInt(responseBody.get("_version").toString());
+        Assert.assertNotEquals("response is missing Id", Detector.NO_ID, createdId);
+        Assert.assertTrue("incorrect version", createdVersion > 0);
+        Assert.assertEquals("Incorrect Location header", String.format(Locale.getDefault(), "%s/%s", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, createdId), createResponse.getHeader("Location"));
+        Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("rule_topic_index"));
+        Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("findings_index"));
+        Assert.assertFalse(((Map<String, Object>) responseBody.get("detector")).containsKey("alert_index"));
+
+        String request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        List<SearchHit> hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        SearchHit hit = hits.get(0);
+
+        String monitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        indexDoc(index, "1", randomDoc());
+
+        Response executeResponse = executeAlertingMonitor(monitorId, Collections.emptyMap());
+        Map<String, Object> executeResults = entityAsMap(executeResponse);
+
+        int noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testCreatingADetectorWithCorrelationIndex() throws IOException, InterruptedException {
+        String adLdapLogsIndex = createTestIndex("ad_logs", adLdapLogMappings());
+        String s3AccessLogsIndex = createTestIndex("s3_access_logs", s3AccessLogMappings());
+        String appLogsIndex = createTestIndex("app_logs", appLogMappings());
+        String windowsIndex = createTestIndex(randomIndex(), windowsIndexMapping());
+        String vpcFlowsIndex = createTestIndex("vpc_flow", vpcFlowMappings());
+        String vpcFlowsIndex1 = createTestIndex("vpc_flow1", vpcFlowMappings());
+
+        Detector vpcFlowDetector = randomDetectorWithInputsAndTriggersAndType(List.of(new DetectorInput("vpc flow detector for security analytics", List.of("vpc_flow"), List.of(),
+                        getPrePackagedRules("network").stream().map(DetectorRule::new).collect(Collectors.toList()), List.of())),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("network"), List.of(), List.of(), List.of(), List.of())), Detector.DetectorType.NETWORK);
+
+        Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(vpcFlowDetector));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        Map<String, Object> responseBody = asMap(createResponse);
+
+        String createdId = responseBody.get("_id").toString();
+
+        String request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        List<SearchHit> hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        SearchHit hit = hits.get(0);
+
+        String vpcFlowMonitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        // Execute CreateMappingsAction to add alias mapping for index
+        Request createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
+        // both req params and req body are supported
+        createMappingRequest.setJsonEntity(
+                "{\n" +
+                        "  \"index_name\": \"" + adLdapLogsIndex + "\",\n" +
+                        "  \"rule_topic\": \"ad_ldap\",\n" +
+                        "  \"partial\": true,\n" +
+                        "  \"alias_mappings\": {\n" +
+                        "    \"properties\": {\n" +
+                        "      \"winlog-event_data-TargetUserName\": {\n" +
+                        "        \"path\": \"winlog.event_data.TargetUserName\",\n" +
+                        "        \"type\": \"alias\"\n" +
+                        "      },\n" +
+                        "      \"timestamp\": {\n" +
+                        "        \"path\": \"creationTime\",\n" +
+                        "        \"type\": \"alias\"\n" +
+                        "      }\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}"
+        );
+
+        Response response = client().performRequest(createMappingRequest);
+        assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
+
+        Detector adLdapDetector = randomDetectorWithInputsAndTriggersAndType(List.of(new DetectorInput("ad_ldap logs detector for security analytics", List.of(), List.of(),
+                        getPrePackagedRules("ad_ldap").stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("ad_logs", List.of(
+                        new CorrelationInfo("network", "vpc_flow", List.of(new CorrelationField(Map.of("network-dstaddr", "4.5.6.7", "ad_ldap-ResultType", 50126))))
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("ad_ldap"), List.of(), List.of(), List.of(), List.of())), Detector.DetectorType.AD_LDAP);
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(adLdapDetector));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String adLdapMonitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        // Execute CreateMappingsAction to add alias mapping for index
+        createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
+        // both req params and req body are supported
+        createMappingRequest.setJsonEntity(
+                "{ \"index_name\":\"" + windowsIndex + "\"," +
+                        "  \"rule_topic\":\"" + randomDetectorType() + "\", " +
+                        "  \"partial\":true" +
+                        "}"
+        );
+
+        response = client().performRequest(createMappingRequest);
+        assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
+
+        Detector windowsDetector = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of(), List.of(),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("windows", List.of(
+                                new CorrelationInfo("network", "vpc_flow", List.of(new CorrelationField(Map.of("network-dstaddr", "4.5.6.7", "test_windows-Domain", "NTAUTHORITY"))))
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(randomDetectorType()), List.of(), List.of(), List.of(), List.of())));
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(windowsDetector));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String windowsMonitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        Detector windowsDetectorWithoutJoin = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of(), List.of(),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("windows", List.of(
+                        new CorrelationInfo("network", null, List.of())
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(randomDetectorType()), List.of(), List.of(), List.of(), List.of())));
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(windowsDetectorWithoutJoin));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String windowsMonitorIdWithoutJoin = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        Detector windowsDetectorWithIndexWithoutJoin = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of(), List.of(),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("windows", List.of(
+                        new CorrelationInfo("network", "vpc_flow", List.of())
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(randomDetectorType()), List.of(), List.of(), List.of(), List.of())));
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(windowsDetectorWithIndexWithoutJoin));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String windowsMonitorIdWithIndexWithoutJoin = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        Detector windowsDetectorWithDiffIndexWithoutJoin = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of(), List.of(),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("windows", List.of(
+                        new CorrelationInfo("network", "vpc_flow1", List.of())
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(randomDetectorType()), List.of(), List.of(), List.of(), List.of())));
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(windowsDetectorWithDiffIndexWithoutJoin));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String windowsMonitorIdWithDiffIndexWithoutJoin = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        Detector appLogsDetector = randomDetectorWithInputsAndTriggersAndType(List.of(new DetectorInput("app logs detector for security analytics", List.of(), List.of(),
+                        getPrePackagedRules("others_application").stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("app_logs", List.of(
+                                new CorrelationInfo("test_windows", "windows", List.of(new CorrelationField(Map.of("test_windows-HostName", "EC2AMAZ-EPO7HKA", "others_application-endpoint", "/customer_records.txt"))))
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("others_application"), List.of(), List.of(), List.of(), List.of())), Detector.DetectorType.OTHERS_APPLICATION);
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(appLogsDetector));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String appLogsMonitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        // Execute CreateMappingsAction to add alias mapping for index
+        createMappingRequest = new Request("POST", SecurityAnalyticsPlugin.MAPPER_BASE_URI);
+        // both req params and req body are supported
+        createMappingRequest.setJsonEntity(
+                "{\n" +
+                        "  \"index_name\": \"s3_access_logs\",\n" +
+                        "  \"rule_topic\": \"s3\",\n" +
+                        "  \"partial\": true,\n" +
+                        "  \"alias_mappings\": {\n" +
+                        "    \"properties\": {\n" +
+                        "      \"aws-cloudtrail-eventSource\": {\n" +
+                        "        \"type\": \"alias\",\n" +
+                        "        \"path\": \"aws.cloudtrail.eventSource\"\n" +
+                        "      },\n" +
+                        "      \"aws-cloudtrail-eventName\": {\n" +
+                        "        \"type\": \"alias\",\n" +
+                        "        \"path\": \"aws.cloudtrail.eventName\"\n" +
+                        "      },\n" +
+                        "      \"timestamp\": {\n" +
+                        "        \"path\": \"aws.cloudtrail.eventTime\",\n" +
+                        "        \"type\": \"alias\"\n" +
+                        "      }\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}"
+        );
+
+        response = client().performRequest(createMappingRequest);
+        assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
+
+        Detector s3AccessLogsDetector = randomDetectorWithInputsAndTriggersAndType(List.of(new DetectorInput("s3 access logs detector for security analytics", List.of(), List.of(),
+                        getPrePackagedRules("s3").stream().map(DetectorRule::new).collect(Collectors.toList()), List.of(new CorrelatedIndex("s3_access_logs", List.of(
+                        new CorrelationInfo("others_application", "app_logs", List.of(new CorrelationField(Map.of("others_application-keywords", "PermissionDenied", "s3-aws.cloudtrail.eventName", "ReplicateObject"))))
+                ))))),
+                List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("s3"), List.of(), List.of(), List.of(), List.of())), Detector.DetectorType.S3);
+
+        createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(s3AccessLogsDetector));
+        Assert.assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createResponse));
+
+        responseBody = asMap(createResponse);
+
+        createdId = responseBody.get("_id").toString();
+
+        request = "{\n" +
+                "   \"query\" : {\n" +
+                "     \"match\":{\n" +
+                "        \"_id\": \"" + createdId + "\"\n" +
+                "     }\n" +
+                "   }\n" +
+                "}";
+        hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        hit = hits.get(0);
+
+        String s3AccessLogsMonitorId = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
+
+        indexDoc(vpcFlowsIndex, "1", randomVpcFlowDoc());
+        Response executeResponse = executeAlertingMonitor(vpcFlowMonitorId, Collections.emptyMap());
+        Map<String, Object> executeResults = entityAsMap(executeResponse);
+        int noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(2, noOfSigmaRuleMatches);
+
+        indexDoc(vpcFlowsIndex, "6", anotherRandomVpcFlowDoc());
+        executeResponse = executeAlertingMonitor(vpcFlowMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(2, noOfSigmaRuleMatches);
+
+        indexDoc(adLdapLogsIndex, "22", randomAdLdapDoc());
+        executeResponse = executeAlertingMonitor(adLdapMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        indexDoc(windowsIndex, "2", randomDoc());
+        executeResponse = executeAlertingMonitor(windowsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        executeResponse = executeAlertingMonitor(windowsMonitorIdWithoutJoin, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        executeResponse = executeAlertingMonitor(windowsMonitorIdWithIndexWithoutJoin, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        executeResponse = executeAlertingMonitor(windowsMonitorIdWithDiffIndexWithoutJoin, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        indexDoc(vpcFlowsIndex, "7", anotherRandomVpcFlowDoc());
+        executeResponse = executeAlertingMonitor(vpcFlowMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(2, noOfSigmaRuleMatches);
+
+        indexDoc(appLogsIndex, "4", randomAppLogDoc());
+        executeResponse = executeAlertingMonitor(appLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        indexDoc(s3AccessLogsIndex, "5", randomS3AccessLogDoc());
+        executeResponse = executeAlertingMonitor(s3AccessLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        Thread.sleep(120000);
+
+        indexDoc(vpcFlowsIndex, "11", randomVpcFlowDoc());
+        executeResponse = executeAlertingMonitor(vpcFlowMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(2, noOfSigmaRuleMatches);
+
+        indexDoc(windowsIndex, "12", randomDoc());
+        executeResponse = executeAlertingMonitor(windowsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        indexDoc(appLogsIndex, "14", randomAppLogDoc());
+        executeResponse = executeAlertingMonitor(appLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        indexDoc(s3AccessLogsIndex, "15", randomS3AccessLogDoc());
+        executeResponse = executeAlertingMonitor(s3AccessLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        // Call GetFindings API
+        Map<String, String> params = new HashMap<>();
+        params.put("detectorType", "s3");
+        Response getFindingsResponse = makeRequest(client(), "GET", SecurityAnalyticsPlugin.FINDINGS_BASE_URI + "/_search", params, null);
+        Map<String, Object> getFindingsBody = entityAsMap(getFindingsResponse);
+        String finding = ((List<Map<String, Object>>) getFindingsBody.get("findings")).get(0).get("id").toString();
+
+        List<Map<String, Object>> correlatedFindings = searchCorrelatedFindings(finding, "s3", 480000L, 100);
+
+        Thread.sleep(270000);
+
+        indexDoc(vpcFlowsIndex, "18", randomVpcFlowDoc());
+        executeResponse = executeAlertingMonitor(vpcFlowMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(2, noOfSigmaRuleMatches);
+
+        indexDoc(windowsIndex, "19", randomDoc());
+        executeResponse = executeAlertingMonitor(windowsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(5, noOfSigmaRuleMatches);
+
+        indexDoc(appLogsIndex, "20", randomAppLogDoc());
+        executeResponse = executeAlertingMonitor(appLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        indexDoc(s3AccessLogsIndex, "21", randomS3AccessLogDoc());
+        executeResponse = executeAlertingMonitor(s3AccessLogsMonitorId, Collections.emptyMap());
+        executeResults = entityAsMap(executeResponse);
+        noOfSigmaRuleMatches = ((List<Map<String, Object>>) ((Map<String, Object>) executeResults.get("input_results")).get("results")).get(0).size();
+        Assert.assertEquals(1, noOfSigmaRuleMatches);
+
+        // Call GetFindings API
+        params = new HashMap<>();
+        params.put("detectorType", "s3");
+        getFindingsResponse = makeRequest(client(), "GET", SecurityAnalyticsPlugin.FINDINGS_BASE_URI + "/_search", params, null);
+        getFindingsBody = entityAsMap(getFindingsResponse);
+        finding = ((List<Map<String, Object>>) getFindingsBody.get("findings")).get(0).get("id").toString();
+
+        correlatedFindings = searchCorrelatedFindings(finding, "s3", 200000L, 100);
     }
 }

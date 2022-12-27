@@ -49,7 +49,7 @@ public class TestHelpers {
 
     public static Detector randomDetector(List<String> rules) {
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), Collections.emptyList(),
-                rules.stream().map(DetectorRule::new).collect(Collectors.toList()));
+                rules.stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         return randomDetector(null, null, null, List.of(input), List.of(), null, null, null, null);
     }
 
@@ -61,16 +61,19 @@ public class TestHelpers {
     }
     public static Detector randomDetectorWithTriggers(List<String> rules, List<DetectorTrigger> triggers) {
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), Collections.emptyList(),
-                rules.stream().map(DetectorRule::new).collect(Collectors.toList()));
+                rules.stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         return randomDetector(null, null, null, List.of(input), triggers, null, null, null, null);
     }
     public static Detector randomDetectorWithTriggers(List<String> rules, List<DetectorTrigger> triggers, List<String> inputIndices) {
         DetectorInput input = new DetectorInput("windows detector for security analytics", inputIndices, Collections.emptyList(),
-                rules.stream().map(DetectorRule::new).collect(Collectors.toList()));
+                rules.stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList());
         return randomDetector(null, null, null, List.of(input), triggers, null, null, null, null);
     }
     public static Detector randomDetectorWithInputsAndTriggers(List<DetectorInput> inputs, List<DetectorTrigger> triggers) {
         return randomDetector(null, null, null, inputs, triggers, null, null, null, null);
+    }
+    public static Detector randomDetectorWithInputsAndTriggersAndType(List<DetectorInput> inputs, List<DetectorTrigger> triggers, Detector.DetectorType detectorType) {
+        return randomDetector(null, detectorType, null, inputs, triggers, null, null, null, null);
     }
 
     public static Detector randomDetectorWithTriggers(List<String> rules, List<DetectorTrigger> triggers, Detector.DetectorType detectorType, DetectorInput input) {
@@ -99,7 +102,7 @@ public class TestHelpers {
             inputs = Collections.emptyList();
         }
         if (schedule == null) {
-            schedule = new IntervalSchedule(5, ChronoUnit.MINUTES, null);
+            schedule = new IntervalSchedule(15, ChronoUnit.MINUTES, null);
         }
         if (enabled == null) {
             enabled = OpenSearchTestCase.randomBoolean();
@@ -115,7 +118,7 @@ public class TestHelpers {
         if (inputs.size() == 0) {
             inputs = new ArrayList<>();
 
-            DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), Collections.emptyList(), null);
+            DetectorInput input = new DetectorInput("windows detector for security analytics", List.of("windows"), Collections.emptyList(), null, Collections.emptyList());
             inputs.add(input);
         }
         if (triggers.size() == 0) {
@@ -336,7 +339,7 @@ public class TestHelpers {
             detectorRules.add(randomDetectorRule());
         }
 
-        return new DetectorInput(description, indices, detectorRules, detectorRules);
+        return new DetectorInput(description, indices, detectorRules, detectorRules, Collections.emptyList());
     }
 
     public static DetectorRule randomDetectorRule() {
@@ -433,6 +436,132 @@ public class TestHelpers {
                 "}" +
                 "}" +
                 "}" +
+                "    }";
+    }
+
+    public static String randomS3AccessLogDoc() {
+        return "{\n" +
+                "  \"aws.cloudtrail.eventSource\": \"s3.amazonaws.com\",\n" +
+                "  \"aws.cloudtrail.eventName\": \"ReplicateObject\",\n" +
+                "  \"aws.cloudtrail.eventTime\": 1\n" +
+                "}";
+    }
+
+    public static String adLdapLogMappings() {
+        return "\"properties\": {\n" +
+                "      \"ResultType\": {\n" +
+                "        \"type\": \"integer\"\n" +
+                "      },\n" +
+                "      \"ResultDescription\": {\n" +
+                "        \"type\": \"text\"\n" +
+                "      },\n" +
+                "      \"winlog.event_data.TargetUserName\": {\n" +
+                "        \"type\": \"text\"\n" +
+                "      }\n" +
+                "    }";
+    }
+
+    public static String s3AccessLogMappings() {
+        return "    \"properties\": {" +
+                "        \"aws.cloudtrail.eventSource\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"aws.cloudtrail.eventName\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"aws.cloudtrail.eventTime\": {" +
+                "          \"type\": \"integer\"" +
+                "        }" +
+                "    }";
+    }
+
+    public static String randomAppLogDoc() {
+        return "{\n" +
+                "  \"endpoint\": \"/customer_records.txt\",\n" +
+                "  \"http_method\": \"POST\",\n" +
+                "  \"keywords\": \"PermissionDenied\"\n" +
+                "}";
+    }
+
+    public static String appLogMappings() {
+        return "    \"properties\": {" +
+                "        \"http_method\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"endpoint\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"keywords\": {" +
+                "          \"type\": \"text\"" +
+                "        }" +
+                "    }";
+    }
+
+    public static String randomVpcFlowDoc() {
+        return "{\n" +
+                "  \"version\": 1,\n" +
+                "  \"account-id\": \"A12345\",\n" +
+                "  \"interface-id\": \"I12345\",\n" +
+                "  \"srcaddr\": \"1.2.3.4\",\n" +
+                "  \"dstaddr\": \"4.5.6.7\",\n" +
+                "  \"srcport\": 9000,\n" +
+                "  \"dstport\": 8000,\n" +
+                "  \"severity_id\": \"-1\",\n" +
+                "  \"class_name\": \"Network Activity\"\n" +
+                "}";
+    }
+
+    public static String anotherRandomVpcFlowDoc() {
+        return "{\n" +
+                "  \"version\": 1,\n" +
+                "  \"account-id\": \"A12345\",\n" +
+                "  \"interface-id\": \"I12345\",\n" +
+                "  \"srcaddr\": \"1.2.3.4\",\n" +
+                "  \"dstaddr\": \"5.6.7.8\",\n" +
+                "  \"srcport\": 9000,\n" +
+                "  \"dstport\": 8000,\n" +
+                "  \"severity_id\": \"-1\",\n" +
+                "  \"class_name\": \"Network Activity\"\n" +
+                "}";
+    }
+
+    public static String randomAdLdapDoc() {
+        return "{\n" +
+                "  \"ResultType\": 50126,\n" +
+                "  \"ResultDescription\": \"Invalid username or password or Invalid on-premises username or password.\",\n" +
+                "  \"winlog.event_data.TargetUserName\": \"DEYSUBHO\"\n" +
+                "}";
+    }
+
+    public static String vpcFlowMappings() {
+        return "    \"properties\": {" +
+                "        \"version\": {" +
+                "          \"type\": \"integer\"" +
+                "        }," +
+                "        \"account-id\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"interface-id\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"srcaddr\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"dstaddr\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"srcport\": {" +
+                "          \"type\": \"integer\"" +
+                "        }," +
+                "        \"dstport\": {" +
+                "          \"type\": \"integer\"" +
+                "        }," +
+                "        \"severity_id\": {" +
+                "          \"type\": \"text\"" +
+                "        }," +
+                "        \"class_name\": {" +
+                "          \"type\": \"text\"" +
+                "        }" +
                 "    }";
     }
 
@@ -1212,7 +1341,7 @@ public class TestHelpers {
                 "\"ExecutionProcessID\":1996,\n" +
                 "\"ExecutionThreadID\":2616,\n" +
                 "\"Channel\":\"Microsoft-Windows-Sysmon/Operational\",\n" +
-                "\"Domain\":\"NT AUTHORITY\",\n" +
+                "\"Domain\":\"NTAUTHORITY\",\n" +
                 "\"AccountName\":\"SYSTEM\",\n" +
                 "\"UserID\":\"S-1-5-18\",\n" +
                 "\"AccountType\":\"User\",\n" +

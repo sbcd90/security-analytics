@@ -63,6 +63,7 @@ public class TransportSearchRuleAction extends HandledTransportAction<SearchRule
         this.settings = settings;
 
         this.indexTimeout = SecurityAnalyticsSettings.INDEX_TIMEOUT.get(this.settings);
+        this.clusterService.getClusterSettings().addSettingsUpdateConsumer(SecurityAnalyticsSettings.INDEX_TIMEOUT, it -> indexTimeout = it);
     }
 
     @Override

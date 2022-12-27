@@ -13,20 +13,21 @@ logsource:
     product: django
 detection:
     keywords:
-        - SuspiciousOperation
-        # Subclasses of SuspiciousOperation
-        - DisallowedHost
-        - DisallowedModelAdminLookup
-        - DisallowedModelAdminToField
-        - DisallowedRedirect
-        - InvalidSessionKey
-        - RequestDataTooBig
-        - SuspiciousFileOperation
-        - SuspiciousMultipartForm
-        - SuspiciousSession
-        - TooManyFieldsSent
-        # Further security-related exceptions
-        - PermissionDenied
+        keywords:
+            - SuspiciousOperation
+            # Subclasses of SuspiciousOperation
+            - DisallowedHost
+            - DisallowedModelAdminLookup
+            - DisallowedModelAdminToField
+            - DisallowedRedirect
+            - InvalidSessionKey
+            - RequestDataTooBig
+            - SuspiciousFileOperation
+            - SuspiciousMultipartForm
+            - SuspiciousSession
+            - TooManyFieldsSent
+            # Further security-related exceptions
+            - PermissionDenied
     condition: keywords
 falsepositives:
     - Application bugs

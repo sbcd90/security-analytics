@@ -176,6 +176,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
         this.filterByEnabled = SecurityAnalyticsSettings.FILTER_BY_BACKEND_ROLES.get(this.settings);
 
         this.clusterService.getClusterSettings().addSettingsUpdateConsumer(SecurityAnalyticsSettings.FILTER_BY_BACKEND_ROLES, this::setFilterByEnabled);
+        this.clusterService.getClusterSettings().addSettingsUpdateConsumer(SecurityAnalyticsSettings.INDEX_TIMEOUT, it -> indexTimeout = it);
 
     }
 
@@ -998,7 +999,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
             final Detector detector = request.getDetector();
             final String ruleTopic = detector.getDetectorType();
             final DetectorInput detectorInput = detector.getInputs().get(0);
-            final String logIndex = detectorInput.getIndices().get(0);
+            final String logIndex = detectorInput.getIndices().size() > 0? detectorInput.getIndices().get(0): detectorInput.getCorrelatedIndices().get(0).getIndex();
 
             List<String> ruleIds = detectorInput.getPrePackagedRules().stream().map(DetectorRule::getId).collect(Collectors.toList());
 
@@ -1067,7 +1068,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
 
         @SuppressWarnings("unchecked")
         public void importCustomRules(Detector detector, DetectorInput detectorInput, List<Pair<String, Rule>> queries, ActionListener<List<IndexMonitorResponse>> listener) {
-            final String logIndex = detectorInput.getIndices().get(0);
+            final String logIndex = detectorInput.getIndices().size() > 0? detectorInput.getIndices().get(0): detectorInput.getCorrelatedIndices().get(0).getIndex();
             List<String> ruleIds = detectorInput.getCustomRules().stream().map(DetectorRule::getId).collect(Collectors.toList());
 
             QueryBuilder queryBuilder = QueryBuilders.termsQuery("_id", ruleIds.toArray(new String[]{}));

@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 public class SecurityAnalyticsPluginTransportIT extends OpenSearchIntegTestCase {
 
-    public void testPluginsAreInstalled() {
+/*    public void testPluginsAreInstalled() {
         NodesInfoRequest nodesInfoRequest = new NodesInfoRequest();
         nodesInfoRequest.addMetric(NodesInfoRequest.Metric.PLUGINS.metricName());
         NodesInfoResponse nodesInfoResponse = OpenSearchIntegTestCase.client().admin().cluster().nodesInfo(nodesInfoRequest)
@@ -29,5 +29,5 @@ public class SecurityAnalyticsPluginTransportIT extends OpenSearchIntegTestCase 
                         .getPluginInfos().stream()).collect(Collectors.toList());
         Assert.assertTrue(pluginInfos.stream().anyMatch(pluginInfo -> pluginInfo.getName()
                 .equals("opensearch-security-analytics")));
-    }
+    }*/
 }

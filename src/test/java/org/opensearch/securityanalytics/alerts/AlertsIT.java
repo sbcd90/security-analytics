@@ -79,7 +79,7 @@ public class AlertsIT extends SecurityAnalyticsRestTestCase {
         Action triggerAction = randomAction(createDestination());
 
         Detector detector = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(createdId)),
-                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()))),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), null)),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(), List.of(createdId), List.of(), List.of("attack.defense_evasion"), List.of(triggerAction))));
 
         createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -197,13 +197,13 @@ public class AlertsIT extends SecurityAnalyticsRestTestCase {
         Action triggerAction = randomAction(createDestination());
 
         Detector detector = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(),
-                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()))),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), null)),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(), List.of(), List.of(), List.of("attack.defense_evasion"), List.of(triggerAction))));
 
         Response createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
 
         Detector detector1 = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(),
-                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()))),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), null)),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(), List.of(), List.of(), List.of("attack.defense_evasion"), List.of(triggerAction))));
 
         Response createResponse1 = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector1));
@@ -304,7 +304,7 @@ public class AlertsIT extends SecurityAnalyticsRestTestCase {
         Action triggerAction = randomAction(createDestination());
 
         Detector detector = randomDetectorWithInputsAndTriggers(List.of(new DetectorInput("windows detector for security analytics", List.of("windows"), List.of(new DetectorRule(createdId)),
-                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()))),
+                        getRandomPrePackagedRules().stream().map(DetectorRule::new).collect(Collectors.toList()), Collections.emptyList())),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of(), List.of(createdId), List.of(), List.of("attack.defense_evasion"), List.of(triggerAction))));
 
         createResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
@@ -512,7 +512,7 @@ public class AlertsIT extends SecurityAnalyticsRestTestCase {
         String monitorId1 = ((List<String>) ((Map<String, Object>) hit.getSourceAsMap().get("detector")).get("monitor_id")).get(0);
         // Detector 2 - NETWORK
         DetectorInput inputNetflow = new DetectorInput("windows detector for security analytics", List.of("netflow_test"), Collections.emptyList(),
-                getPrePackagedRules("network").stream().map(DetectorRule::new).collect(Collectors.toList()));
+                getPrePackagedRules("network").stream().map(DetectorRule::new).collect(Collectors.toList()), null);
         Detector detector2 = randomDetectorWithTriggers(
                 getPrePackagedRules("network"),
                 List.of(new DetectorTrigger(null, "test-trigger", "1", List.of("network"), List.of(), List.of(), List.of(), List.of())),

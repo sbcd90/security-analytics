@@ -21,11 +21,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.opensearch.securityanalytics.model.CorrelatedIndex.CORRELATION_INDICES;
+
 public class DetectorInput implements Writeable, ToXContentObject {
 
     private String description;
 
     private List<String> indices;
+
+    private List<CorrelatedIndex> correlatedIndices;
 
     private List<DetectorRule> customRules;
 
@@ -45,11 +49,12 @@ public class DetectorInput implements Writeable, ToXContentObject {
             DetectorInput::parse
     );
 
-    public DetectorInput(String description, List<String> indices, List<DetectorRule> customRules, List<DetectorRule> prePackagedRules) {
+    public DetectorInput(String description, List<String> indices, List<DetectorRule> customRules, List<DetectorRule> prePackagedRules, List<CorrelatedIndex> correlatedIndices) {
         this.description = description;
         this.indices = indices;
         this.customRules = customRules;
         this.prePackagedRules = prePackagedRules;
+        this.correlatedIndices = correlatedIndices;
     }
 
     public DetectorInput(StreamInput sin) throws IOException {
@@ -57,7 +62,8 @@ public class DetectorInput implements Writeable, ToXContentObject {
                 sin.readString(),
                 sin.readStringList(),
                 sin.readList(DetectorRule::new),
-                sin.readList(DetectorRule::new)
+                sin.readList(DetectorRule::new),
+                sin.readList(CorrelatedIndex::new)
         );
     }
 
@@ -66,7 +72,8 @@ public class DetectorInput implements Writeable, ToXContentObject {
                 DESCRIPTION_FIELD, description,
                 INDICES_FIELD, indices,
                 CUSTOM_RULES_FIELD, customRules.stream().map(DetectorRule::asTemplateArg).collect(Collectors.toList()),
-                PREPACKAGED_RULES_FIELD, prePackagedRules.stream().map(DetectorRule::asTemplateArg).collect(Collectors.toList())
+                PREPACKAGED_RULES_FIELD, prePackagedRules.stream().map(DetectorRule::asTemplateArg).collect(Collectors.toList()),
+                CORRELATION_INDICES, correlatedIndices
         );
     }
 
@@ -76,6 +83,10 @@ public class DetectorInput implements Writeable, ToXContentObject {
         out.writeStringCollection(indices);
         out.writeCollection(customRules);
         out.writeCollection(prePackagedRules);
+
+        if (correlatedIndices != null) {
+            out.writeCollection(correlatedIndices);
+        }
     }
 
     @Override
@@ -94,9 +105,14 @@ public class DetectorInput implements Writeable, ToXContentObject {
                 .field(DESCRIPTION_FIELD, description)
                 .field(INDICES_FIELD, indicesArray)
                 .field(CUSTOM_RULES_FIELD, customRulesArray)
-                .field(PREPACKAGED_RULES_FIELD, prePackagedRulesArray)
-                .endObject()
-                .endObject();
+                .field(PREPACKAGED_RULES_FIELD, prePackagedRulesArray);
+
+        if (correlatedIndices != null) {
+            CorrelatedIndex[] correlatedIndicesArray = new CorrelatedIndex[]{};
+            correlatedIndicesArray = correlatedIndices.toArray(correlatedIndicesArray);
+            builder.field(CORRELATION_INDICES, correlatedIndicesArray);
+        }
+        builder.endObject().endObject();
         return builder;
     }
 
@@ -105,6 +121,7 @@ public class DetectorInput implements Writeable, ToXContentObject {
         List<String> indices = new ArrayList<>();
         List<DetectorRule> customRules = new ArrayList<>();
         List<DetectorRule> prePackagedRules = new ArrayList<>();
+        List<CorrelatedIndex> correlatedIndices = new ArrayList<>();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, xcp.nextToken(), xcp);
@@ -136,10 +153,16 @@ public class DetectorInput implements Writeable, ToXContentObject {
                     while (xcp.nextToken() != XContentParser.Token.END_ARRAY) {
                         prePackagedRules.add(DetectorRule.parse(xcp));
                     }
+                    break;
+                case CORRELATION_INDICES:
+                    XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_ARRAY, xcp.currentToken(), xcp);
+                    while (xcp.nextToken() != XContentParser.Token.END_ARRAY) {
+                        correlatedIndices.add(CorrelatedIndex.parse(xcp));
+                    }
             }
         }
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.END_OBJECT, xcp.nextToken(), xcp);
-        return new DetectorInput(description, indices, customRules, prePackagedRules);
+        return new DetectorInput(description, indices, customRules, prePackagedRules, correlatedIndices);
     }
 
     public static DetectorInput readFrom(StreamInput sin) throws IOException {
@@ -164,6 +187,10 @@ public class DetectorInput implements Writeable, ToXContentObject {
 
     public List<DetectorRule> getPrePackagedRules() {
         return prePackagedRules;
+    }
+
+    public List<CorrelatedIndex> getCorrelatedIndices() {
+        return correlatedIndices;
     }
 
     @Override

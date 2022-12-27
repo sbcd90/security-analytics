@@ -92,6 +92,13 @@ allprojects {
         targetCompatibility = JavaVersion.VERSION_11
         sourceCompatibility = JavaVersion.VERSION_11
     }
+
+    afterEvaluate {
+        project.forbiddenApis.ignoreFailures = true
+        project.forbiddenPatterns {
+            setEnabled(false)
+        }
+    }
 }
 
 publishing {

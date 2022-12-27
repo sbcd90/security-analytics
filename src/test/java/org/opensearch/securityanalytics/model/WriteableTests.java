@@ -11,6 +11,7 @@ import org.opensearch.commons.authuser.User;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import static org.opensearch.securityanalytics.TestHelpers.randomDetector;
@@ -21,7 +22,7 @@ public class WriteableTests extends OpenSearchTestCase {
 
     public void testDetectorAsStream() throws IOException {
         Detector detector = randomDetector(List.of());
-        detector.setInputs(List.of(new DetectorInput("", List.of(), List.of(), List.of())));
+        detector.setInputs(List.of(new DetectorInput("", List.of(), List.of(), List.of(), Collections.emptyList())));
         BytesStreamOutput out = new BytesStreamOutput();
         detector.writeTo(out);
         StreamInput sin = StreamInput.wrap(out.bytes().toBytesRef().bytes);

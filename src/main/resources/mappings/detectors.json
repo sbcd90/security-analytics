@@ -121,6 +121,9 @@
             }
           }
         },
+        "monitor_id": {
+          "type": "keyword"
+        },
         "inputs": {
           "type": "nested",
           "properties": {
@@ -142,6 +145,51 @@
                     "keyword": {
                       "type": "keyword",
                       "ignore_above": 256
+                    }
+                  }
+                },
+                "corr_indices": {
+                  "type": "nested",
+                  "properties": {
+                    "index": {
+                      "type": "text",
+                      "fields": {
+                        "keyword": {
+                          "type": "keyword",
+                          "ignore_above": 256
+                        }
+                      }
+                    },
+                    "correlate": {
+                      "type": "nested",
+                      "properties": {
+                        "category": {
+                          "type": "text",
+                          "fields": {
+                            "keyword": {
+                              "type": "keyword",
+                              "ignore_above": 256
+                            }
+                          }
+                        },
+                        "index": {
+                          "type": "text",
+                          "fields": {
+                            "keyword": {
+                              "type": "keyword",
+                              "ignore_above": 256
+                            }
+                          }
+                        },
+                        "fields": {
+                          "type": "nested",
+                          "properties": {
+                            "field": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 },

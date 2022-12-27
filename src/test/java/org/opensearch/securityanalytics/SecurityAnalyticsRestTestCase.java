@@ -56,6 +56,7 @@ import org.opensearch.securityanalytics.action.CreateIndexMappingsRequest;
 import org.opensearch.securityanalytics.action.UpdateIndexMappingsRequest;
 import org.opensearch.securityanalytics.config.monitors.DetectorMonitorConfig;
 import org.opensearch.securityanalytics.mapper.MappingsTraverser;
+import org.opensearch.securityanalytics.correlation.index.query.CorrelationQueryBuilder;
 import org.opensearch.securityanalytics.model.Detector;
 import org.opensearch.securityanalytics.model.Rule;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
@@ -152,6 +153,10 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
 
     protected static String TEST_HR_ROLE = "hr_role";
 
+    protected Settings getCorrelationDefaultIndexSettings() {
+        return Settings.builder().put("number_of_shards", 1).put("number_of_replicas", 0).put("index.correlation", true).build();
+    }
+
     protected String createTestIndex(String index, String mapping) throws IOException {
         createTestIndex(index, mapping, Settings.EMPTY);
         return index;
@@ -182,12 +187,51 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
     protected String createDocumentWithNFields(int numOfFields) {
         StringBuilder doc = new StringBuilder();
         doc.append("{");
-        for(int i = 0; i < numOfFields - 1; i++) {
+        for (int i = 0; i < numOfFields - 1; i++) {
             doc.append("\"id").append(i).append("\": 5,");
         }
         doc.append("\"last_field\": 100 }");
 
         return doc.toString();
+    }
+
+    protected String createTestIndexWithMappingJson(RestClient client, String index, String mapping, Settings settings) throws IOException {
+        Request request = new Request("PUT", "/" + index);
+        String entity = "{\"settings\": " + Strings.toString(settings);
+        if (mapping != null) {
+            entity = entity + ",\"mappings\" : " + mapping;
+        }
+
+        entity = entity + "}";
+        if (!settings.getAsBoolean(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)) {
+            expectSoftDeletesWarning(request, index);
+        }
+
+        request.setJsonEntity(entity);
+        client.performRequest(request);
+        return index;
+    }
+
+    protected void addCorrelationDoc(String index, String docId, List<String> fieldNames, List<Object> vectors) throws IOException {
+        Request request = new Request("POST", "/" + index + "/_doc/" + docId + "?refresh=true");
+
+        XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            builder.field(fieldNames.get(i), vectors.get(i));
+        }
+        builder.endObject();
+
+        request.setJsonEntity(Strings.toString(builder));
+        Response response = client().performRequest(request);
+        assertEquals(request.getEndpoint() + ": failed", RestStatus.CREATED, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected List<Map<String, Object>> searchCorrelatedFindings(String findingId, String detectorType, long timeWindow, int nearestFindings) throws IOException {
+        Response response = makeRequest(client(), "GET", "/_plugins/_security_analytics/findings/correlate", Map.of("finding", findingId, "detector_type", detectorType,
+                        "time_window", String.valueOf(timeWindow), "nearby_findings", String.valueOf(nearestFindings)),
+                null, new BasicHeader("Content-Type", "application/json"));
+        return (List<Map<String, Object>>) entityAsMap(response).get("findings");
     }
 
     protected Response makeRequest(RestClient client, String method, String endpoint, Map<String, String> params,
@@ -205,6 +249,12 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
             request.setEntity(entity);
         }
         return client.performRequest(request);
+    }
+
+    protected int getDocCount(String index) throws IOException {
+        Response response = makeRequest(client(), "GET", String.format(Locale.getDefault(), "/%s/_count", index), Collections.emptyMap(), null);
+        Assert.assertEquals(RestStatus.OK, restStatus(response));
+        return Integer.parseInt(entityAsMap(response).get("count").toString());
     }
 
     protected Boolean doesIndexExist(String index) throws IOException {
@@ -258,6 +308,23 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
         } catch (ResponseException ex) {
             return ex.getResponse().getStatusLine().getStatusCode() != 404;
         }
+    }
+
+    protected Response searchCorrelationIndex(String index, CorrelationQueryBuilder correlationQueryBuilder, int resultSize) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startObject("query");
+        correlationQueryBuilder.doXContent(builder, ToXContent.EMPTY_PARAMS);
+        builder.endObject().endObject();
+
+        Request request = new Request("POST", "/" + index + "/_search");
+
+        request.addParameter("size", Integer.toString(resultSize));
+        request.addParameter("explain", Boolean.toString(true));
+        request.addParameter("search_type", "query_then_fetch");
+        request.setJsonEntity(Strings.toString(builder));
+
+        Response response = client().performRequest(request);
+        Assert.assertEquals("Search failed", RestStatus.OK, restStatus(response));
+        return response;
     }
 
     protected String createDestination() throws IOException {
