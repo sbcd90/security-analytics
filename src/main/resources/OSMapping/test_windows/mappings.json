@@ -1,9 +1,5 @@
 {
   "properties": {
-    "Command_Line": {
-      "type": "alias",
-      "path": "CommandLine"
-    },
     "event_uid": {
       "type": "alias",
       "path": "EventID"
