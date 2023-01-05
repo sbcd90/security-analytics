@@ -1,6 +1,6 @@
 {
   "properties": {
-    "windows-event_data-CommandLine": {
+    "Command_Line": {
       "type": "alias",
       "path": "CommandLine"
     },
