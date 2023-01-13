@@ -19,8 +19,8 @@ import java.util.stream.Stream;
 
 /*public class SecurityAnalyticsPluginTransportIT extends OpenSearchIntegTestCase {
 
-    public void testPluginsAreInstalled() {                            
-        NodesInfoRequest nodesInfoRequest = new NodesInfoRequest();
+    public void testPluginsAreInstalled() {
+        NodesInfoRequest nodesInfoRequest = new NodesInfoRequest();              
         nodesInfoRequest.addMetric(NodesInfoRequest.Metric.PLUGINS.metricName());
         NodesInfoResponse nodesInfoResponse = OpenSearchIntegTestCase.client().admin().cluster().nodesInfo(nodesInfoRequest)
                 .actionGet();
