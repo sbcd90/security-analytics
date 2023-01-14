@@ -23,11 +23,11 @@ import java.util.stream.Stream;
         NodesInfoRequest nodesInfoRequest = new NodesInfoRequest();
         nodesInfoRequest.addMetric(NodesInfoRequest.Metric.PLUGINS.metricName());
         NodesInfoResponse nodesInfoResponse = OpenSearchIntegTestCase.client().admin().cluster().nodesInfo(nodesInfoRequest)
-                .actionGet();
+                .actionGet();  
         List<PluginInfo> pluginInfos = nodesInfoResponse.getNodes().stream()
                 .flatMap((Function<NodeInfo, Stream<PluginInfo>>) nodeInfo -> nodeInfo.getInfo(PluginsAndModules.class)
                         .getPluginInfos().stream()).collect(Collectors.toList());
         Assert.assertTrue(pluginInfos.stream().anyMatch(pluginInfo -> pluginInfo.getName()
-                .equals("opensearch-security-analytics")));    
+                .equals("opensearch-security-analytics")));
     }
 }*/
