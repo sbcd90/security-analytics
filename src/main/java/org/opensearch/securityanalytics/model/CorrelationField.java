@@ -18,38 +18,47 @@ import java.util.Objects;
 
 public class CorrelationField implements Writeable, ToXContentObject {
 
+    private Boolean isQuery;
     private Map<String, Object> fields;
 
+    protected static final String IS_QUERY_FIELD = "query";
     protected static final String CORRELATION_FIELD = "field";
 
-    public CorrelationField(Map<String, Object> fields) {
+    public CorrelationField(Boolean isQuery, Map<String, Object> fields) {
+        this.isQuery = isQuery;
         this.fields = fields;
     }
 
     public CorrelationField(StreamInput sin) throws IOException {
-        this(sin.readMap());
+        this(sin.readBoolean(),
+            sin.readMap()
+        );
     }
 
     public Map<String, Object> asTemplateArg() {
         return Map.of(
+                IS_QUERY_FIELD, isQuery,
                 CORRELATION_FIELD, fields
         );
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        out.writeBoolean(isQuery);
         out.writeMap(fields);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject()
+                .field(IS_QUERY_FIELD, isQuery)
                 .field(CORRELATION_FIELD, fields)
                 .endObject();
         return builder;
     }
 
     public static CorrelationField parse(XContentParser xcp) throws IOException {
+        Boolean isQuery = null;
         Map<String, Object> fields = null;
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.currentToken(), xcp);
@@ -58,16 +67,23 @@ public class CorrelationField implements Writeable, ToXContentObject {
             xcp.nextToken();
 
             switch (fieldName) {
+                case IS_QUERY_FIELD:
+                    isQuery = xcp.booleanValue();
+                    break;
                 case CORRELATION_FIELD:
                     fields = xcp.map();
                     break;
             }
         }
-        return new CorrelationField(fields);
+        return new CorrelationField(isQuery, fields);
     }
 
     public static CorrelationField readFrom(StreamInput sin) throws IOException {
         return new CorrelationField(sin);
+    }
+
+    public Boolean getQuery() {
+        return isQuery;
     }
 
     public Map<String, Object> getFields() {
@@ -79,11 +95,11 @@ public class CorrelationField implements Writeable, ToXContentObject {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         CorrelationField that = (CorrelationField) o;
-        return fields.equals(that.fields);
+        return isQuery.equals(that.isQuery) && fields.equals(that.fields);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fields);
+        return Objects.hash(isQuery, fields);
     }
 }

@@ -149,7 +149,7 @@ public class TransportSearchCorrelationAction extends HandledTransportAction<Cor
                             searchSourceBuilder.query(queryBuilder);
                             searchSourceBuilder.fetchSource(false);
                             searchSourceBuilder.fetchField("counter");
-                            searchSourceBuilder.size(10);
+                            searchSourceBuilder.size(1);
                             SearchRequest searchRequest = new SearchRequest();
                             searchRequest.indices(CorrelationIndices.CORRELATION_INDEX);
                             searchRequest.source(searchSourceBuilder);
@@ -204,10 +204,22 @@ public class TransportSearchCorrelationAction extends HandledTransportAction<Cor
                                                 for (SearchHit hit: hits) {
                                                     Map<String, Object> source = hit.getSourceAsMap();
                                                     if (!source.get("finding1").toString().equals(findingId)) {
-                                                        correlatedFindings.put(Pair.of(source.get("finding1").toString(), source.get("logType").toString().split("-")[0]), (double) hit.getScore());
+                                                        Pair<String, String> findingKey1 = Pair.of(source.get("finding1").toString(), source.get("logType").toString().split("-")[0]);
+
+                                                        if (correlatedFindings.containsKey(findingKey1)) {
+                                                            correlatedFindings.put(findingKey1, Math.max(correlatedFindings.get(findingKey1), hit.getScore()));
+                                                        } else {
+                                                            correlatedFindings.put(findingKey1, (double) hit.getScore());
+                                                        }
                                                     }
                                                     if (!source.get("finding2").toString().equals(findingId)) {
-                                                        correlatedFindings.put(Pair.of(source.get("finding2").toString(), source.get("logType").toString().split("-")[1]), (double) hit.getScore());
+                                                        Pair<String, String> findingKey2 = Pair.of(source.get("finding2").toString(), source.get("logType").toString().split("-")[1]);
+
+                                                        if (correlatedFindings.containsKey(findingKey2)) {
+                                                            correlatedFindings.put(findingKey2, Math.max(correlatedFindings.get(findingKey2), hit.getScore()));
+                                                        } else {
+                                                            correlatedFindings.put(findingKey2, (double) hit.getScore());
+                                                        }
                                                     }
                                                 }
                                                 log.info("hit here");

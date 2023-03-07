@@ -253,6 +253,7 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
                     if (correlationInfo.getFields().size() > 0) {
                         // todo support multi-joins
                         CorrelationField field = correlationInfo.getFields().get(0);
+                        Boolean isQuery = field.getQuery();
                         Map<String, Object> joinFields = field.getFields();
 
                         String joinKey = null;
@@ -261,23 +262,23 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
                         Object parentJoinValue = null;
                         for (Map.Entry<String, Object> joinField: joinFields.entrySet()) {
                             if (joinField.getKey().startsWith(detectorType)) {
-                                joinKey = joinField.getKey().replace(detectorType + "-", "");
+                                joinKey = isQuery ? joinField.getKey(): joinField.getKey().replace(detectorType + "-", "");
                                 joinValue = joinField.getValue();
                             }
                             if (joinField.getKey().startsWith(correlationInfo.getCategory())) {
-                                parentJoinKey = joinField.getKey().replace(correlationInfo.getCategory() + "-", "");
+                                parentJoinKey = isQuery? joinField.getKey(): joinField.getKey().replace(correlationInfo.getCategory() + "-", "");
                                 parentJoinValue = joinField.getValue();
                             }
                         }
 
                         docSearchCriteriaMap.put(correlationInfo.getCategory(),
-                                new DocSearchCriteria(detectorIndex, joinKey, joinValue, relatedDocIds, correlationInfo.getIndex(), parentJoinKey, parentJoinValue));
+                                new DocSearchCriteria(detectorIndex, joinKey, joinValue, relatedDocIds, correlationInfo.getIndex(), parentJoinKey, parentJoinValue, isQuery));
                     } else {
                         if (correlationInfo.getIndex() != null) {
                             docSearchCriteriaMap.put(correlationInfo.getCategory(),
-                                    new DocSearchCriteria(detectorIndex, null, null, relatedDocIds, correlationInfo.getIndex(), null, null));
+                                    new DocSearchCriteria(detectorIndex, null, null, relatedDocIds, correlationInfo.getIndex(), null, null, false));
                         } else {
-                            parentJoinCriteriaList.add(new ParentJoinCriteria(correlationInfo.getCategory(), null, null, null));
+                            parentJoinCriteriaList.add(new ParentJoinCriteria(correlationInfo.getCategory(), null, null, null, false));
                         }
                     }
                 }
@@ -300,8 +301,13 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
             for (Map.Entry<String, DocSearchCriteria> docSearchCriteria : docSearchCriteriaMap.entrySet()) {
                 if (docSearchCriteria.getValue().joinKey != null) {
                     BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-                            .filter(QueryBuilders.termsQuery("_id", docSearchCriteria.getValue().relatedDocIds))
-                            .must(QueryBuilders.matchQuery(docSearchCriteria.getValue().joinKey, docSearchCriteria.getValue().joinValue));
+                            .filter(QueryBuilders.termsQuery("_id", docSearchCriteria.getValue().relatedDocIds));
+
+                    if (docSearchCriteria.getValue().isQuery) {
+                        queryBuilder = queryBuilder.must(QueryBuilders.queryStringQuery(docSearchCriteria.getValue().joinValue.toString()));
+                    } else {
+                        queryBuilder = queryBuilder.must(QueryBuilders.matchQuery(docSearchCriteria.getValue().joinKey, docSearchCriteria.getValue().joinValue));
+                    }
 
                     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
                     searchSourceBuilder.query(queryBuilder);
@@ -311,11 +317,11 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
                     searchRequest.indices(docSearchCriteria.getValue().index);
                     searchRequest.source(searchSourceBuilder);
                     parentJoinCriteriaList.add(new ParentJoinCriteria(docSearchCriteria.getKey(),
-                            docSearchCriteria.getValue().parentIndex, docSearchCriteria.getValue().parentJoinKey, docSearchCriteria.getValue().parentJoinValue));
+                            docSearchCriteria.getValue().parentIndex, docSearchCriteria.getValue().parentJoinKey, docSearchCriteria.getValue().parentJoinValue, docSearchCriteria.getValue().isQuery));
                     mSearchRequest.add(searchRequest);
                 } else {
                     parentCriteriaWithoutJoin.add(new ParentJoinCriteria(docSearchCriteria.getKey(),
-                            docSearchCriteria.getValue().parentIndex, null, null));
+                            docSearchCriteria.getValue().parentIndex, null, null, docSearchCriteria.getValue().isQuery));
                 }
             }
 
@@ -400,7 +406,8 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
                                             relatedDocIds,
                                             null,
                                             null,
-                                            null));
+                                            null,
+                                            parentFindingJoinCriteriaList.get(idx).isQuery));
                             ++idx;
                         }
 
@@ -429,8 +436,12 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
                         .filter(QueryBuilders.termsQuery("_id", docSearchCriteria.getValue().relatedDocIds));
 
                 if (docSearchCriteria.getValue().joinKey != null) {
-                    queryBuilder = queryBuilder.
-                            must(QueryBuilders.matchQuery(docSearchCriteria.getValue().joinKey, docSearchCriteria.getValue().joinValue));
+                    if (docSearchCriteria.getValue().isQuery) {
+                        queryBuilder = queryBuilder.must(QueryBuilders.queryStringQuery(docSearchCriteria.getValue().joinValue.toString()));
+                    } else {
+                        queryBuilder = queryBuilder.
+                                must(QueryBuilders.matchQuery(docSearchCriteria.getValue().joinKey, docSearchCriteria.getValue().joinValue));
+                    }
                 }
 
                 SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -617,137 +628,149 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
 
         public void insertCorrelatedFindings(String detectorType, Finding finding, String logType, List<String> correlatedFindings, float timestampFeature) {
             long findingTimestamp = finding.getTimestamp().toEpochMilli();
-            MultiSearchRequest mSearchRequest = new MultiSearchRequest();
+            MatchQueryBuilder queryBuilder = QueryBuilders.matchQuery(
+                    "root", true
+            );
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(queryBuilder);
+            searchSourceBuilder.fetchSource(true);
+            searchSourceBuilder.size(1);
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(CorrelationIndices.CORRELATION_INDEX);
+            searchRequest.source(searchSourceBuilder);
 
-            for (String correlatedFinding: correlatedFindings) {
-                BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-                        .must(QueryBuilders.matchQuery(
-                                "finding1", correlatedFinding
-                        )).must(QueryBuilders.matchQuery(
-                                "finding2", ""
-                        ));
-                SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-                searchSourceBuilder.query(queryBuilder);
-                searchSourceBuilder.fetchSource(true);
-                searchSourceBuilder.size(10000);
-                SearchRequest searchRequest = new SearchRequest();
-                searchRequest.indices(CorrelationIndices.CORRELATION_INDEX);
-                searchRequest.source(searchSourceBuilder);
-
-                mSearchRequest.add(searchRequest);
-            }
-
-            client.multiSearch(mSearchRequest, new ActionListener<>() {
+            client.search(searchRequest, new ActionListener<>() {
                 @Override
-                public void onResponse(MultiSearchResponse items) {
-                    MultiSearchResponse.Item[] responses = items.getResponses();
-                    BulkRequest bulkRequest = new BulkRequest();
-                    bulkRequest.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
-
-                    long prevCounter = -1L;
-                    for (MultiSearchResponse.Item response: responses) {
-                        if (response.isFailure()) {
-                            log.info(response.getFailureMessage());
-                            continue;
-                        }
-
-                        long totalHits = response.getResponse().getHits().getTotalHits().value;
-
-                        for (int idx = 0; idx < totalHits; ++idx) {
-                            SearchHit hit = response.getResponse().getHits().getHits()[idx];
-                            Map<String, Object> hitSource = hit.getSourceAsMap();
-                            long counter = Long.parseLong(hitSource.get("counter").toString());
-                            String correlatedFinding = hitSource.get("finding1").toString();
-
-                            try {
-                                float[] corrVector = new float[101];
-                                if (counter != prevCounter) {
-                                    for (int i = 0; i < 100; ++i) {
-                                        corrVector[i] = ((float) counter) - 50.0f;
-                                    }
-                                    corrVector[logTypeToDim.get(detectorType)] = (float) counter;
-                                    corrVector[100] = timestampFeature;
-
-                                    XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
-                                    builder.field("root", false);
-                                    builder.field("counter", counter);
-                                    builder.field("finding1", finding.getId());
-                                    builder.field("finding2", "");
-                                    builder.field("logType", logTypeToDim.get(detectorType).toString());
-                                    builder.field("timestamp", findingTimestamp);
-                                    builder.field("corr_vector", corrVector);
-                                    builder.field("recordType", "finding");
-                                    builder.field("scoreTimestamp", 0L);
-                                    builder.endObject();
-
-                                    IndexRequest indexRequest = new IndexRequest(CorrelationIndices.CORRELATION_INDEX)
-                                            .source(builder)
-                                            .timeout(indexTimeout);
-                                    bulkRequest.add(indexRequest);
-
-                                    corrVector = new float[101];
-                                    for (int i = 0; i < 100; ++i) {
-                                        corrVector[i] = ((float) counter) - 50.0f;
-                                    }
-                                    corrVector[logTypeToDim.get(detectorType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
-                                    corrVector[logTypeToDim.get(logType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
-                                    corrVector[100] = timestampFeature;
-
-                                    XContentBuilder corrBuilder = XContentFactory.jsonBuilder().startObject();
-                                    corrBuilder.field("root", false);
-                                    corrBuilder.field("counter", (long) ((2.0f * ((float) counter) - 50.0f) / 2.0f));
-                                    corrBuilder.field("finding1", finding.getId());
-                                    corrBuilder.field("finding2", correlatedFinding);
-                                    corrBuilder.field("logType", String.format(Locale.ROOT, "%s-%s", detectorType, logType));
-                                    corrBuilder.field("timestamp", findingTimestamp);
-                                    corrBuilder.field("corr_vector", corrVector);
-                                    corrBuilder.field("recordType", "finding-finding");
-                                    corrBuilder.field("scoreTimestamp", 0L);
-                                    corrBuilder.endObject();
-
-                                    indexRequest = new IndexRequest(CorrelationIndices.CORRELATION_INDEX)
-                                            .source(corrBuilder)
-                                            .timeout(indexTimeout);
-                                    bulkRequest.add(indexRequest);
-                                    prevCounter = counter;
-                                } else {
-                                    for (int i = 0; i < 100; ++i) {
-                                        corrVector[i] = ((float) counter) - 50.0f;
-                                    }
-                                    corrVector[logTypeToDim.get(detectorType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
-                                    corrVector[logTypeToDim.get(logType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
-                                    corrVector[100] = timestampFeature;
-
-                                    XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
-                                    builder.field("root", false);
-                                    builder.field("counter", (long) ((2.0f * ((float) counter) - 50.0f) / 2.0f));
-                                    builder.field("finding1", finding.getId());
-                                    builder.field("finding2", correlatedFinding);
-                                    builder.field("logType", String.format(Locale.ROOT, "%s-%s", detectorType, logType));
-                                    builder.field("timestamp", findingTimestamp);
-                                    builder.field("corr_vector", corrVector);
-                                    builder.field("recordType", "finding-finding");
-                                    builder.field("scoreTimestamp", 0L);
-                                    builder.endObject();
-
-                                    IndexRequest indexRequest = new IndexRequest(CorrelationIndices.CORRELATION_INDEX)
-                                            .source(builder)
-                                            .timeout(indexTimeout);
-                                    bulkRequest.add(indexRequest);
-                                }
-                            } catch (IOException ex) {
-                                onFailures(ex);
-                            }
-                        }
+                public void onResponse(SearchResponse response) {
+                    if (response.isTimedOut()) {
+                        onFailures(new OpenSearchStatusException(response.toString(), RestStatus.REQUEST_TIMEOUT));
                     }
 
-                    client.bulk(bulkRequest, new ActionListener<>() {
+                    Map<String, Object> hitSource = response.getHits().getHits()[0].getSourceAsMap();
+                    long counter = Long.parseLong(hitSource.get("counter").toString());
+
+                    MultiSearchRequest mSearchRequest = new MultiSearchRequest();
+
+                    for (String correlatedFinding: correlatedFindings) {
+                        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
+                                .must(QueryBuilders.matchQuery(
+                                        "finding1", correlatedFinding
+                                )).must(QueryBuilders.matchQuery(
+                                        "finding2", ""
+                                )).must(QueryBuilders.matchQuery(
+                                        "counter", counter
+                                ));
+                        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+                        searchSourceBuilder.query(queryBuilder);
+                        searchSourceBuilder.fetchSource(true);
+                        searchSourceBuilder.size(10000);
+                        SearchRequest searchRequest = new SearchRequest();
+                        searchRequest.indices(CorrelationIndices.CORRELATION_INDEX);
+                        searchRequest.source(searchSourceBuilder);
+
+                        mSearchRequest.add(searchRequest);
+                    }
+
+                    client.multiSearch(mSearchRequest, new ActionListener<>() {
                         @Override
-                        public void onResponse(BulkResponse response) {
-                            if (response.hasFailures()) {
-                                onFailures(new OpenSearchStatusException("Correlation of finding failed", RestStatus.INTERNAL_SERVER_ERROR));
+                        public void onResponse(MultiSearchResponse items) {
+                            MultiSearchResponse.Item[] responses = items.getResponses();
+                            BulkRequest bulkRequest = new BulkRequest();
+                            bulkRequest.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+
+                            long prevCounter = -1L;
+                            long totalNeighbors = 0L;
+                            for (MultiSearchResponse.Item response: responses) {
+                                if (response.isFailure()) {
+                                    log.info(response.getFailureMessage());
+                                    continue;
+                                }
+
+                                long totalHits = response.getResponse().getHits().getTotalHits().value;
+                                totalNeighbors += totalHits;
+
+                                for (int idx = 0; idx < totalHits; ++idx) {
+                                    SearchHit hit = response.getResponse().getHits().getHits()[idx];
+                                    Map<String, Object> hitSource = hit.getSourceAsMap();
+                                    long counter = Long.parseLong(hitSource.get("counter").toString());
+                                    String correlatedFinding = hitSource.get("finding1").toString();
+
+                                    try {
+                                        float[] corrVector = new float[101];
+                                        if (counter != prevCounter) {
+                                            for (int i = 0; i < 100; ++i) {
+                                                corrVector[i] = ((float) counter) - 50.0f;
+                                            }
+                                            corrVector[logTypeToDim.get(detectorType)] = (float) counter;
+                                            corrVector[100] = timestampFeature;
+
+                                            XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
+                                            builder.field("root", false);
+                                            builder.field("counter", counter);
+                                            builder.field("finding1", finding.getId());
+                                            builder.field("finding2", "");
+                                            builder.field("logType", logTypeToDim.get(detectorType).toString());
+                                            builder.field("timestamp", findingTimestamp);
+                                            builder.field("corr_vector", corrVector);
+                                            builder.field("recordType", "finding");
+                                            builder.field("scoreTimestamp", 0L);
+                                            builder.endObject();
+
+                                            IndexRequest indexRequest = new IndexRequest(CorrelationIndices.CORRELATION_INDEX)
+                                                    .source(builder)
+                                                    .timeout(indexTimeout);
+                                            bulkRequest.add(indexRequest);
+                                        }
+
+                                        corrVector = new float[101];
+                                        for (int i = 0; i < 100; ++i) {
+                                            corrVector[i] = ((float) counter) - 50.0f;
+                                        }
+                                        corrVector[logTypeToDim.get(detectorType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
+                                        corrVector[logTypeToDim.get(logType)] = (2.0f * ((float) counter) - 50.0f) / 2.0f;
+                                        corrVector[100] = timestampFeature;
+
+                                        XContentBuilder corrBuilder = XContentFactory.jsonBuilder().startObject();
+                                        corrBuilder.field("root", false);
+                                        corrBuilder.field("counter", (long) ((2.0f * ((float) counter) - 50.0f) / 2.0f));
+                                        corrBuilder.field("finding1", finding.getId());
+                                        corrBuilder.field("finding2", correlatedFinding);
+                                        corrBuilder.field("logType", String.format(Locale.ROOT, "%s-%s", detectorType, logType));
+                                        corrBuilder.field("timestamp", findingTimestamp);
+                                        corrBuilder.field("corr_vector", corrVector);
+                                        corrBuilder.field("recordType", "finding-finding");
+                                        corrBuilder.field("scoreTimestamp", 0L);
+                                        corrBuilder.endObject();
+
+                                        IndexRequest indexRequest = new IndexRequest(CorrelationIndices.CORRELATION_INDEX)
+                                                .source(corrBuilder)
+                                                .timeout(indexTimeout);
+                                        bulkRequest.add(indexRequest);
+                                    } catch (IOException ex) {
+                                        onFailures(ex);
+                                    }
+                                    prevCounter = counter;
+                                }
                             }
-                            onOperation();
+
+                            if (totalNeighbors > 0L) {
+                                client.bulk(bulkRequest, new ActionListener<>() {
+                                    @Override
+                                    public void onResponse(BulkResponse response) {
+                                        if (response.hasFailures()) {
+                                            onFailures(new OpenSearchStatusException("Correlation of finding failed", RestStatus.INTERNAL_SERVER_ERROR));
+                                        }
+                                        onOperation();
+                                    }
+
+                                    @Override
+                                    public void onFailure(Exception e) {
+                                        onFailures(e);
+                                    }
+                                });
+                            } else {
+                                insertOrphanFindings(detectorType, finding, timestampFeature);
+                            }
                         }
 
                         @Override
@@ -1323,8 +1346,9 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
         Object joinValue;
         String parentJoinKey;
         Object parentJoinValue;
+        Boolean isQuery;
 
-        public DocSearchCriteria(String index, String joinKey, Object joinValue, List<String> relatedDocIds, String parentIndex, String parentJoinKey, Object parentJoinValue) {
+        public DocSearchCriteria(String index, String joinKey, Object joinValue, List<String> relatedDocIds, String parentIndex, String parentJoinKey, Object parentJoinValue, Boolean isQuery) {
             this.index = index;
             this.joinKey = joinKey;
             this.joinValue = joinValue;
@@ -1332,6 +1356,7 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
             this.parentIndex = parentIndex;
             this.parentJoinKey = parentJoinKey;
             this.parentJoinValue = parentJoinValue;
+            this.isQuery = isQuery;
         }
     }
 
@@ -1340,12 +1365,14 @@ public class TransportCorrelateFindingAction extends HandledTransportAction<Acti
         String index;
         String parentJoinKey;
         Object parentJoinValue;
+        Boolean isQuery;
 
-        public ParentJoinCriteria(String category, String index, String parentJoinKey, Object parentJoinValue) {
+        public ParentJoinCriteria(String category, String index, String parentJoinKey, Object parentJoinValue, Boolean isQuery) {
             this.category = category;
             this.index = index;
             this.parentJoinKey = parentJoinKey;
             this.parentJoinValue = parentJoinValue;
+            this.isQuery = isQuery;
         }
     }
 
