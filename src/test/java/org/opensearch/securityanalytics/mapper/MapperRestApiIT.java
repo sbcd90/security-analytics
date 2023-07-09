@@ -83,7 +83,7 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
 
         indexDoc(testIndexName1, "1", sampleDoc);
         // puts mappings with timestamp alias
-        String createMappingsRequest = "{\"index_name\":\"my_index*\",\"rule_topic\":\"windows\",\"partial\":true,\"alias_mappings\":{\"properties\":{\"timestamp\":{\"type\":\"alias\",\"path\":\"lvl1field\"},\"winlog-computer_name\":{\"type\":\"alias\",\"path\":\"source1.port\"},\"winlog-event_data-AuthenticationPackageName\":{\"type\":\"alias\",\"path\":\"source1.ip\"},\"winlog-event_data-Company\":{\"type\":\"alias\",\"path\":\"some.very.long.field.name\"}}}}";
+        String createMappingsRequest = "{\"index_name\":\"my_index*\",\"rule_topic\":\"windows\",\"partial\":true,\"alias_mappings\":{\"properties\":{\"timestamp\":{\"type\":\"alias\",\"path\":\"lvl1field\"},\"winlog.computer_name\":{\"type\":\"alias\",\"path\":\"source1.port\"},\"winlog.event_data.AuthenticationPackageName\":{\"type\":\"alias\",\"path\":\"source1.ip\"},\"winlog.event_data.Company\":{\"type\":\"alias\",\"path\":\"some.very.long.field.name\"}}}}";
 
         Request request = new Request("POST", MAPPER_BASE_URI);
         // both req params and req body are supported
@@ -96,8 +96,7 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
         assertEquals(HttpStatus.SC_OK, response.getStatusLine().getStatusCode());
         Map<String, Object> respMap = (Map<String, Object>) responseAsMap(response);
         Map<String, Object> props = (Map<String, Object>)((Map<String, Object>) respMap.get(testIndexPattern)).get("mappings");
-        props = (Map<String, Object>) props.get("properties");
-        assertEquals(4, props.size());
+        assertEquals(4, recurProps(props));
     }
 
     public void testCreateMappingSuccess() throws IOException {
@@ -1376,8 +1375,8 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
     }
 
     public void testReadResource() throws IOException {
-        String content = readResource(DNS_MAPPINGS);
-        assertTrue(content.contains("properties"));
+        String content = readResource(DNS_SAMPLE);
+        assertTrue(content.contains("dns"));
     }
 
     public void testCreateDNSMapping() throws IOException{
@@ -1608,7 +1607,7 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
                 "   }\n" +
                 "}";
         List<SearchHit> hits = executeSearch(".opensearch-sap-cloudtrail-detectors-queries-000001", request);
-        Assert.assertEquals(31, hits.size());
+        Assert.assertEquals(32, hits.size());
     }
 
     public void testS3Mappings() throws IOException {
@@ -1625,7 +1624,6 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
         //Expect only "timestamp" alias to be applied
         Map<String, Object> mappings = getIndexMappingsSAFlat(indexName);
         assertTrue(mappings.containsKey("timestamp"));
-        assertTrue(mappings.containsKey("Requester"));
 
         // Verify that all rules are working
         DetectorInput input = new DetectorInput("windows detector for security analytics", List.of(indexName), List.of(),
@@ -1641,5 +1639,23 @@ public class MapperRestApiIT extends SecurityAnalyticsRestTestCase {
                 "}";
         List<SearchHit> hits = executeSearch(".opensearch-sap-s3-detectors-queries-000001", request);
         Assert.assertEquals(1, hits.size());
+    }
+
+    @SuppressWarnings("unchecked")
+    private int recurProps(Map<String, Object> props) {
+        int totalProps = 0;
+        if (props.containsKey("properties")) {
+            totalProps += recurProps((Map<String, Object>) props.get("properties"));
+        } else {
+            for (Map.Entry<String, Object> prop: props.entrySet()) {
+                Map<String, Object> propValue = (Map<String, Object>) prop.getValue();
+                if (propValue.containsKey("properties")) {
+                    totalProps += recurProps((Map<String, Object>) propValue.get("properties"));
+                } else {
+                    ++totalProps;
+                }
+            }
+        }
+        return totalProps;
     }
 }

@@ -233,7 +233,8 @@ public class Detector implements Writeable, ToXContentObject {
         OKTA("okta", 19),
         AZURE("azure", 20),
         S3("s3", 21),
-        TEST_WINDOWS("test_windows", 22);
+        TEST_WINDOWS("test_windows", 22),
+        VPCFLOW("vpcflow", 23);
 
         private String type;
         private int dim;
