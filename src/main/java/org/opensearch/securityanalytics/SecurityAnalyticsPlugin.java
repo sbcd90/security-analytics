@@ -12,7 +12,13 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.action.ActionType;
+import org.opensearch.client.node.NodeClient;
 import org.opensearch.cluster.routing.Preference;
+import org.opensearch.commons.alerting.AlertingPluginInterface;
+import org.opensearch.commons.alerting.action.EventListenerRequest;
+import org.opensearch.commons.alerting.action.EventListenerResponse;
+import org.opensearch.commons.alerting.action.SubscribeAdResponse;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.core.action.ActionResponse;
@@ -274,7 +280,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin, Map
                 new ActionPlugin.ActionHandler<>(SearchCorrelationRuleAction.INSTANCE, TransportSearchCorrelationRuleAction.class),
                 new ActionHandler<>(IndexCustomLogTypeAction.INSTANCE, TransportIndexCustomLogTypeAction.class),
                 new ActionHandler<>(SearchCustomLogTypeAction.INSTANCE, TransportSearchCustomLogTypeAction.class),
-                new ActionHandler<>(DeleteCustomLogTypeAction.INSTANCE, TransportDeleteCustomLogTypeAction.class)
+                new ActionHandler<>(DeleteCustomLogTypeAction.INSTANCE, TransportDeleteCustomLogTypeAction.class),
+                new ActionHandler<>(new ActionType<>("cluster:admin/opensearch/securityanalytics/ad", SubscribeAdResponse::new), TransportAdCallbackAction.class)
         );
     }
 
@@ -292,5 +299,30 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin, Map
                 log.warn("Failed to initialize LogType config index and builtin log types");
             }
         });
+
+        AlertingPluginInterface.INSTANCE.addEventListener((NodeClient) client, new EventListenerRequest("cluster:admin/opensearch/alerting/findings/subscribe", "onFindingCreated"),
+                new ActionListener<>() {
+                    @Override
+                    public void onResponse(EventListenerResponse eventListenerResponse) {
+                        log.info(eventListenerResponse.getStatus().getStatus());
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error(e);
+                    }
+                });
+        AlertingPluginInterface.INSTANCE.addEventListener((NodeClient) client, new EventListenerRequest("cluster:admin/opensearch/securityanalytics/ad", "onAdCallbackCalled"),
+                new ActionListener<>() {
+                    @Override
+                    public void onResponse(EventListenerResponse eventListenerResponse) {
+                        log.info(eventListenerResponse.getStatus().getStatus());
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error(e);
+                    }
+                });
       }
 }
