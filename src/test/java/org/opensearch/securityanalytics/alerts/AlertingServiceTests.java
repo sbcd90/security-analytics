@@ -95,7 +95,10 @@ public class AlertingServiceTests extends OpenSearchTestCase {
                         List.of(),
                         Map.of(),
                         new DataSources(),
-                        TransportIndexDetectorAction.PLUGIN_OWNER_FIELD
+                        TransportIndexDetectorAction.PLUGIN_OWNER_FIELD,
+                        false,
+                        List.of(),
+                        List.of()
                 ),
                 new DocumentLevelTrigger("trigger_id_1", "my_trigger", "severity_low", List.of(), new Script("")),
                 List.of("finding_id_1"),
@@ -129,7 +132,10 @@ public class AlertingServiceTests extends OpenSearchTestCase {
                         List.of(),
                         Map.of(),
                         new DataSources(),
-                        TransportIndexDetectorAction.PLUGIN_OWNER_FIELD
+                        TransportIndexDetectorAction.PLUGIN_OWNER_FIELD,
+                        false,
+                        List.of(),
+                        List.of()
                 ),
                 new DocumentLevelTrigger("trigger_id_1", "my_trigger", "severity_low", List.of(), new Script("")),
                 List.of("finding_id_1"),

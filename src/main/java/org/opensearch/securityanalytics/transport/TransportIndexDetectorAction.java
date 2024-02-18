@@ -327,7 +327,8 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                         AlertingPluginInterface.INSTANCE.indexMonitor((NodeClient) client, monitorRequests.get(0), namedWriteableRegistry, indexDocLevelMonitorStep);
                         indexDocLevelMonitorStep.whenComplete(addedFirstMonitorResponse -> {
                                     monitorResponses.add(addedFirstMonitorResponse);
-                                    saveWorkflow(rulesById, detector, monitorResponses, refreshPolicy, listener);
+//                                    saveWorkflow(rulesById, detector, monitorResponses, refreshPolicy, listener);
+                                    listener.onResponse(monitorResponses);
                                 },
                                 e -> {
                                     listener.onFailure(e);
@@ -701,7 +702,8 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
             triggers.add(new DocumentLevelTrigger(id, name, severity, actions, condition));
         }
 
-        Monitor monitor = new Monitor(monitorId, Monitor.NO_VERSION, detector.getName(), false, detector.getSchedule(), detector.getLastUpdateTime(), null,
+        Monitor monitor = new Monitor(monitorId, Monitor.NO_VERSION, detector.getName(), true, detector.getSchedule(), detector.getLastUpdateTime(),
+                detector.getEnabledTime() != null? detector.getEnabledTime(): Instant.now(),
                 Monitor.MonitorType.DOC_LEVEL_MONITOR, detector.getUser(), 1, docLevelMonitorInputs, triggers, Map.of(),
                 new DataSources(detector.getRuleIndex(),
                         detector.getFindingsIndex(),
@@ -710,7 +712,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                         detector.getAlertsHistoryIndex(),
                         detector.getAlertsHistoryIndexPattern(),
                         DetectorMonitorConfig.getRuleIndexMappingsByType(),
-                        true), PLUGIN_OWNER_FIELD);
+                        true), PLUGIN_OWNER_FIELD, false, List.of(), List.of());
 
         return new IndexMonitorRequest(monitorId, SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, refreshPolicy, restMethod, monitor, null);
     }
@@ -784,7 +786,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                         detector.getAlertsHistoryIndex(),
                         detector.getAlertsHistoryIndexPattern(),
                         DetectorMonitorConfig.getRuleIndexMappingsByType(),
-                        true), PLUGIN_OWNER_FIELD);
+                        true), PLUGIN_OWNER_FIELD, false, List.of(), List.of());
 
         return new IndexMonitorRequest(monitorId, SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, refreshPolicy, restMethod, monitor, null);
     }
@@ -921,7 +923,7 @@ public class TransportIndexDetectorAction extends HandledTransportAction<IndexDe
                 detector.getAlertsHistoryIndex(),
                 detector.getAlertsHistoryIndexPattern(),
                 DetectorMonitorConfig.getRuleIndexMappingsByType(),
-                true), PLUGIN_OWNER_FIELD);
+                true), PLUGIN_OWNER_FIELD, false, List.of(), List.of());
 
         return new IndexMonitorRequest(monitorId, SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, refreshPolicy, restMethod, monitor, null);
     }

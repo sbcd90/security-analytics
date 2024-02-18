@@ -258,7 +258,7 @@ public class SecurityAnalyticsRestTestCase extends OpenSearchRestTestCase {
     protected static String TEST_HR_ROLE = "hr_role";
 
     protected String createTestIndex(String index, String mapping) throws IOException {
-        createTestIndex(index, mapping, Settings.EMPTY);
+        createTestIndex(index, mapping, Settings.builder().put("number_of_shards", 7).build());
         return index;
     }
 

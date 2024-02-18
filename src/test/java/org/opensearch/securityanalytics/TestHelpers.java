@@ -134,7 +134,7 @@ public class TestHelpers {
             inputs = Collections.emptyList();
         }
         if (schedule == null) {
-            schedule = new IntervalSchedule(5, ChronoUnit.MINUTES, null);
+            schedule = new IntervalSchedule(1, ChronoUnit.MINUTES, null);
         }
         if (enabled == null) {
             enabled = OpenSearchTestCase.randomBoolean();
