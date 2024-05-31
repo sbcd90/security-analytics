@@ -9,10 +9,6 @@ import java.util.function.BiConsumer;
 
 public interface IoCScanServiceInterface<Data> {
 
-    void createIoCFindings(List<Finding> findings);
-
-    void createIoCMatch(List<IocMatch> iocMatches);
-
     void scanIoCs(
             IocScanContext<Data> iocScanContext,
             BiConsumer<Object, Exception> scanCallback

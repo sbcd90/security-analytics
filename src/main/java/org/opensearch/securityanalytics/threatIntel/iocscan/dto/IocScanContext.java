@@ -5,12 +5,12 @@ import org.opensearch.securityanalytics.threatIntel.iocscan.model.IocScanMonitor
 import java.util.List;
 
 public class IocScanContext<Data> {
-    IocScanMonitor iocScanMonitor;
+    IocScanMonitor monitor;
     boolean dryRun;
     List<Data> data;
 
-    public IocScanMonitor getIocScanMonitor() {
-        return iocScanMonitor;
+    public IocScanMonitor getMonitor() {
+        return monitor;
     }
 
     public boolean isDryRun() {

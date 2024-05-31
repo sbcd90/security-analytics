@@ -2,6 +2,7 @@ package org.opensearch.securityanalytics.threatIntel.iocscan.service;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.commons.alerting.model.Finding;
 import org.opensearch.securityanalytics.model.threatintel.IocMatch;
 import org.opensearch.securityanalytics.threatIntel.iocscan.dto.IocScanContext;
@@ -29,15 +30,22 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
                          BiConsumer<Object, Exception> scanCallback
     ) {
         List<Data> data = iocScanContext.getData();
-        IocScanMonitor iocScanMonitor = iocScanContext.getIocScanMonitor();
+        IocScanMonitor iocScanMonitor = iocScanContext.getMonitor();
 
         long start = System.currentTimeMillis();
         // log.debug("beginning to scan IoC's")
         IocLookupDtos iocLookupDtos = extractIocPerTypeSet(data, iocScanMonitor.getIocTypeToIndexFieldMappings());
         BiConsumer<List<Ioc>, Exception> iocScanResultConsumer = (List<Ioc> maliciousIocs, Exception e) -> {
             if (e == null) {
-                createIoCMatches(maliciousIocs, iocLookupDtos.iocValueToDocIdMap, iocScanContext);
-                createFindings(maliciousIocs, iocLookupDtos.docIdToIocsMap, iocScanMonitor);
+                createIoCMatches(maliciousIocs, iocLookupDtos.iocValueToDocIdMap, iocScanContext,
+                        new BiConsumer<List<Ioc>, Exception>() {
+                            @Override
+                            public void accept(List<Ioc> iocs, Exception e) {
+                                createFindings(maliciousIocs, iocLookupDtos.docIdToIocsMap, iocScanMonitor);
+                            }
+                        }
+                );
+
             } else {
                 //                onIocMatchFailure(e, iocScanMonitor);
 
@@ -93,10 +101,10 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
 
     public abstract String getId(Data datum);
 
-    public void createIoCMatches(List<Ioc> iocs, Map<String, Set<String>> iocValueToDocIdMap, IocScanContext iocScanContext) {
+    public void createIoCMatches(List<Ioc> iocs, Map<String, Set<String>> iocValueToDocIdMap, IocScanContext iocScanContext, BiConsumer<List<Ioc>, Exception> callback) {
         try {
             Instant timestamp = Instant.now();
-            IocScanMonitor iocScanMonitor = iocScanContext.getIocScanMonitor();
+            IocScanMonitor iocScanMonitor = iocScanContext.getMonitor();
             // Map to collect unique IocValue with their respective FeedIds
             Map<String, Set<String>> iocValueToFeedIds = new HashMap<>();
 
@@ -115,26 +123,31 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
 
                 List<String> relatedDocIds = new ArrayList<>(iocValueToDocIdMap.getOrDefault(iocValue, new HashSet<>()));
                 List<String> feedIdsList = new ArrayList<>(feedIds);
-
-                IocMatch iocMatch = new IocMatch(
-                        UUID.randomUUID().toString(), // Generating a unique ID
-                        relatedDocIds,
-                        feedIdsList,
-                        iocScanMonitor.getId(),
-                        iocScanMonitor.getName(),
-                        iocValue,
-                        iocs.stream().filter(i -> i.getIocValue().equals(iocValue)).findFirst().orElseThrow().getIocType(),
-                        timestamp,
-                        UUID.randomUUID().toString() // TODO execution ID
-                );
-
-                iocMatches.add(iocMatch);
+                try {
+                    IocMatch iocMatch = new IocMatch(
+                            UUID.randomUUID().toString(), // Generating a unique ID
+                            relatedDocIds,
+                            feedIdsList,
+                            iocScanMonitor.getId(),
+                            iocScanMonitor.getName(),
+                            iocValue,
+                            iocs.stream().filter(i -> i.getIocValue().equals(iocValue)).findFirst().orElseThrow().getIocType(),
+                            timestamp,
+                            UUID.randomUUID().toString() // TODO execution ID
+                    );
+                    iocMatches.add(iocMatch);
+                } catch (Exception e) {
+                    log.error(String.format("skipping creating ioc match for %s due to unexpected failure.", entry.getKey()), e);
+                }
             }
-            //TODO save iocs
+            saveIocs(iocs, callback);
         } catch (Exception e) {
-
+            log.error(() -> new ParameterizedMessage("Failed to create ioc matches due to unexpected error {}", iocScanContext.getMonitor().getId()), e);
+            callback.accept(null, e);
         }
     }
+
+    abstract void saveIocs(List<Ioc> iocs, BiConsumer<List<Ioc>, Exception> callback);
 
     public List<Finding> createFindings(List<Ioc> iocs, Map<String, Set<String>> docIdToIocsMap, IocScanMonitor iocScanMonitor) {
         List<Finding> findings = new ArrayList<>();

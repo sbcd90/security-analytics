@@ -133,16 +133,7 @@ public class AlertsService {
     ) {
 
         org.opensearch.commons.alerting.action.GetAlertsRequest req =
-                new org.opensearch.commons.alerting.action.GetAlertsRequest(
-                        table,
-                        severityLevel,
-                        alertState,
-                        null,
-                        alertIndex,
-                        monitorIds,
-                        null,
-                        null
-                );
+                null;
 
         AlertingPluginInterface.INSTANCE.getAlerts((NodeClient) client, req, new ActionListener<>() {
                     @Override
@@ -247,15 +238,7 @@ public class AlertsService {
                           Detector detector,
                           Table table,
                           ActionListener<org.opensearch.commons.alerting.action.GetAlertsResponse> actionListener) {
-        GetAlertsRequest request = new GetAlertsRequest(
-                table,
-                "ALL",
-                "ALL",
-                null,
-                DetectorMonitorConfig.getAllAlertsIndicesPattern(detector.getDetectorType()),
-                null,
-                null,
-                alertIds);
+        GetAlertsRequest request = null;
         AlertingPluginInterface.INSTANCE.getAlerts(
                 (NodeClient) client,
                 request, actionListener);
