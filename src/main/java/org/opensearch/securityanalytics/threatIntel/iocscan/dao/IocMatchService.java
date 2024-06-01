@@ -133,7 +133,7 @@ public class IocMatchService {
             }
             final CreateIndexRequest createIndexRequest = new CreateIndexRequest(INDEX_NAME).mapping(getIndexMapping())
                     .settings(SecurityAnalyticsPlugin.TIF_JOB_INDEX_SETTING);
-            StashedThreadContext.run(client, () -> client.admin().indices().create(createIndexRequest, ActionListener.wrap(
+            client.admin().indices().create(createIndexRequest, ActionListener.wrap(
                     r -> {
                         log.debug("Ioc match index created");
                         listener.onResponse(null);
@@ -146,7 +146,7 @@ public class IocMatchService {
                         log.error("Failed to create security analytics threat intel job index", e);
                         listener.onFailure(e);
                     }
-            )));
+            ));
         } catch (Exception e) {
             log.error("Failure in creating ioc_match index", e);
             listener.onFailure(e);

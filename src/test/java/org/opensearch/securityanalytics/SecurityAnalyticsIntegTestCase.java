@@ -15,8 +15,6 @@ public class SecurityAnalyticsIntegTestCase extends OpenSearchIntegTestCase {
                 );
     }
 
-    settings
-
     @Override
     protected boolean ignoreExternalCluster() {
         return true;
