@@ -9,6 +9,7 @@ import org.opensearch.commons.alerting.model.DataSources;
 import org.opensearch.commons.alerting.model.DocLevelMonitorInput;
 import org.opensearch.commons.alerting.model.IntervalSchedule;
 import org.opensearch.commons.alerting.model.Monitor;
+import org.opensearch.commons.alerting.model.ScheduledJob;
 import org.opensearch.commons.alerting.model.remote.monitors.RemoteDocLevelMonitorInput;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -25,6 +26,7 @@ import java.util.Map;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static org.opensearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class ThreatIntelInputTests extends OpenSearchTestCase {
 
@@ -33,8 +35,15 @@ public class ThreatIntelInputTests extends OpenSearchTestCase {
         BytesStreamOutput out = new BytesStreamOutput();
         threatIntelInput.writeTo(out);
         BytesReference bytes = out.bytes();
+        RemoteDocLevelMonitorInput remoteDocLevelMonitorInput = new RemoteDocLevelMonitorInput(
+                bytes,
+                new DocLevelMonitorInput("threat intel input",
+                        List.of("index1", "index2"),
+                        emptyList()
+                )
+        );
         Monitor monitor = new Monitor(
-                randomAlphaOfLength(10),
+                Monitor.NO_ID,
                 Monitor.NO_VERSION,
                 randomAlphaOfLength(10),
                 true,
@@ -45,13 +54,7 @@ public class ThreatIntelInputTests extends OpenSearchTestCase {
                 null,
                 4,
                 List.of(
-                        new RemoteDocLevelMonitorInput(
-                                bytes,
-                                new DocLevelMonitorInput("threat intel input",
-                                        List.of("index1", "index2"),
-                                        emptyList()
-                                )
-                        )
+                        remoteDocLevelMonitorInput
                 ),
                 emptyList(),
                 emptyMap(),
@@ -61,11 +64,8 @@ public class ThreatIntelInputTests extends OpenSearchTestCase {
         BytesStreamOutput monitorOut = new BytesStreamOutput();
         monitor.writeTo(monitorOut);
 
-        StreamInput sin = StreamInput.wrap(monitorOut.bytes().toBytesRef().bytes);
-        Monitor monitor1 = new Monitor(sin);
-
-        String monitorString = toJsonString(monitor);
-        Monitor parsedMonitor = Monitor.parse(getParser(monitorString));
+        String monitorString = BytesReference.bytes(monitor.toXContentWithUser(jsonBuilder(), ToXContent.EMPTY_PARAMS)).utf8ToString();
+        Monitor parsedMonitor = Monitor.parse(getParser(monitorString), Monitor.NO_ID, Monitor.NO_VERSION);
         assertEquals(((RemoteDocLevelMonitorInput) parsedMonitor.getInputs().get(0)).getInput(), ((RemoteDocLevelMonitorInput) parsedMonitor.getInputs().get(0)).getInput());
     }
 
@@ -88,7 +88,7 @@ public class ThreatIntelInputTests extends OpenSearchTestCase {
     }
 
     public String toJsonString(Monitor monitor) throws IOException {
-        XContentBuilder builder = XContentFactory.jsonBuilder();
+        XContentBuilder builder = jsonBuilder();
         return monitor.toXContent(builder, ToXContent.EMPTY_PARAMS).toString();
 
     }
