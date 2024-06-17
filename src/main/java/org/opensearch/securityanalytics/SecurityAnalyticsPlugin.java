@@ -66,17 +66,45 @@ import org.opensearch.securityanalytics.mapper.MapperService;
 import org.opensearch.securityanalytics.model.CustomLogType;
 import org.opensearch.securityanalytics.model.IocDao;
 import org.opensearch.securityanalytics.model.ThreatIntelFeedData;
-import org.opensearch.securityanalytics.resthandler.*;
+import org.opensearch.securityanalytics.resthandler.RestAcknowledgeAlertsAction;
+import org.opensearch.securityanalytics.resthandler.RestCreateIndexMappingsAction;
+import org.opensearch.securityanalytics.resthandler.RestDeleteCorrelationRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestDeleteCustomLogTypeAction;
+import org.opensearch.securityanalytics.resthandler.RestDeleteDetectorAction;
+import org.opensearch.securityanalytics.resthandler.RestDeleteRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestGetAlertsAction;
+import org.opensearch.securityanalytics.resthandler.RestGetAllRuleCategoriesAction;
+import org.opensearch.securityanalytics.resthandler.RestGetDetectorAction;
+import org.opensearch.securityanalytics.resthandler.RestGetFindingsAction;
+import org.opensearch.securityanalytics.resthandler.RestGetIndexMappingsAction;
+import org.opensearch.securityanalytics.resthandler.RestGetMappingsViewAction;
+import org.opensearch.securityanalytics.resthandler.RestIndexCorrelationRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestIndexCustomLogTypeAction;
+import org.opensearch.securityanalytics.resthandler.RestIndexDetectorAction;
+import org.opensearch.securityanalytics.resthandler.RestIndexRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestListCorrelationAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchCorrelationAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchCorrelationRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchCustomLogTypeAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchDetectorAction;
+import org.opensearch.securityanalytics.resthandler.RestSearchRuleAction;
+import org.opensearch.securityanalytics.resthandler.RestUpdateIndexMappingsAction;
+import org.opensearch.securityanalytics.resthandler.RestValidateRulesAction;
+import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
+import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsAction;
+import org.opensearch.securityanalytics.threatIntel.action.PutTIFJobAction;
 import org.opensearch.securityanalytics.threatIntel.action.SAGetTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.action.SAIndexTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.dao.SATIFSourceConfigDao;
 import org.opensearch.securityanalytics.threatIntel.model.SATIFSourceConfig;
+import org.opensearch.securityanalytics.threatIntel.resthandler.RestGetIocFindingsAction;
 import org.opensearch.securityanalytics.threatIntel.resthandler.RestGetTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.resthandler.RestIndexTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.service.DetectorThreatIntelService;
 import org.opensearch.securityanalytics.threatIntel.service.SATIFSourceConfigService;
 import org.opensearch.securityanalytics.threatIntel.service.ThreatIntelFeedDataService;
 import org.opensearch.securityanalytics.threatIntel.action.PutTIFJobAction;
+import org.opensearch.securityanalytics.threatIntel.transport.TransportGetIocFindingsAction;
 import org.opensearch.securityanalytics.threatIntel.transport.TransportGetTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.transport.TransportIndexTIFSourceConfigAction;
 import org.opensearch.securityanalytics.threatIntel.transport.TransportPutTIFJobAction;
@@ -243,7 +271,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin, Map
                 new RestSearchCustomLogTypeAction(),
                 new RestDeleteCustomLogTypeAction(),
                 new RestIndexTIFSourceConfigAction(),
-                new RestGetTIFSourceConfigAction()
+                new RestGetTIFSourceConfigAction(),
+                new RestGetIocFindingsAction()
         );
     }
 
@@ -380,7 +409,8 @@ public class SecurityAnalyticsPlugin extends Plugin implements ActionPlugin, Map
                 new ActionHandler<>(DeleteCustomLogTypeAction.INSTANCE, TransportDeleteCustomLogTypeAction.class),
                 new ActionHandler<>(PutTIFJobAction.INSTANCE, TransportPutTIFJobAction.class),
                 new ActionHandler<>(SAIndexTIFSourceConfigAction.INSTANCE, TransportIndexTIFSourceConfigAction.class),
-                new ActionHandler<>(SAGetTIFSourceConfigAction.INSTANCE, TransportGetTIFSourceConfigAction.class)
+                new ActionHandler<>(SAGetTIFSourceConfigAction.INSTANCE, TransportGetTIFSourceConfigAction.class),
+                new ActionHandler<>(GetIocFindingsAction.INSTANCE, TransportGetIocFindingsAction.class)
         );
     }
 

@@ -17,7 +17,7 @@ import java.util.concurrent.CountDownLatch;
 public class IocMatchServiceIT extends SecurityAnalyticsIntegTestCase {
 
     public void test_indexIocMatches() throws InterruptedException {
-        IocMatchService service = new IocMatchService(client(), clusterService());
+        IocMatchService service = new IocMatchService(client(), clusterService(), xContentRegistry());
         List<IocMatch> iocMatches = generateIocMatches(10);
         CountDown countdown = new CountDown(1);
         service.indexIocMatches(iocMatches, ActionListener.wrap(r -> {

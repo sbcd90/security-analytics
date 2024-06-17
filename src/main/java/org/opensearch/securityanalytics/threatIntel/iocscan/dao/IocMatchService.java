@@ -7,18 +7,30 @@ import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.action.get.MultiGetRequest;
 import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.GroupedActionListener;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.ToXContent;
+import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.core.xcontent.XContentParserUtils;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
 import org.opensearch.securityanalytics.model.threatintel.IocMatch;
+import org.opensearch.securityanalytics.model.threatintel.IocMatchWithDocs;
 import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
+import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsResponse;
 import org.opensearch.securityanalytics.threatIntel.common.StashedThreadContext;
 import org.opensearch.securityanalytics.util.SecurityAnalyticsException;
 import org.opensearch.threadpool.ThreadPool;
@@ -42,9 +54,12 @@ public class IocMatchService {
     private final Client client;
     private final ClusterService clusterService;
 
-    public IocMatchService(final Client client, final ClusterService clusterService) {
+    private final NamedXContentRegistry xContentRegistry;
+
+    public IocMatchService(final Client client, final ClusterService clusterService, final NamedXContentRegistry xContentRegistry) {
         this.client = client;
         this.clusterService = clusterService;
+        this.xContentRegistry = xContentRegistry;
     }
 
     public void indexIocMatches(List<IocMatch> iocMatches,
@@ -151,5 +166,45 @@ public class IocMatchService {
             log.error("Failure in creating ioc_match index", e);
             listener.onFailure(e);
         }
+    }
+
+    public void searchIocMatches(SearchSourceBuilder searchSourceBuilder, final ActionListener<GetIocFindingsResponse> actionListener) {
+        SearchRequest searchRequest = new SearchRequest()
+                .source(searchSourceBuilder)
+                .indices(INDEX_NAME);
+
+        client.search(searchRequest, new ActionListener<>() {
+            @Override
+            public void onResponse(SearchResponse searchResponse) {
+                try {
+                    long totalIocFindingsCount = searchResponse.getHits().getTotalHits().value;
+                    MultiGetRequest mGetRequest = new MultiGetRequest();
+                    List<IocMatchWithDocs> iocMatchWithDocs = new ArrayList<>();
+                    List<IocMatch> iocMatches = new ArrayList<>();
+
+                    for (SearchHit hit: searchResponse.getHits()) {
+                        XContentParser xcp = XContentType.JSON.xContent()
+                                .createParser(xContentRegistry, LoggingDeprecationHandler.INSTANCE, hit.getSourceAsString());
+                        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, xcp.nextToken(), xcp);
+                        IocMatch iocMatch = IocMatch.parse(xcp);
+                        iocMatches.add(iocMatch);
+
+                        List<String> documentIds = iocMatch.getRelatedDocIds();
+                    }
+
+                    for (IocMatch iocMatch: iocMatches) {
+                        iocMatchWithDocs.add(new IocMatchWithDocs(iocMatch, List.of()));
+                    }
+                    actionListener.onResponse(new GetIocFindingsResponse((int) totalIocFindingsCount, iocMatchWithDocs));
+                } catch (Exception ex) {
+                    this.onFailure(ex);
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                actionListener.onFailure(e);
+            }
+        });
     }
 }
