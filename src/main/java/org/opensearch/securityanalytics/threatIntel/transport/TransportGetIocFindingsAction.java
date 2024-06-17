@@ -31,7 +31,7 @@ import org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings;
 import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsAction;
 import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsRequest;
 import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsResponse;
-import org.opensearch.securityanalytics.threatIntel.iocscan.dao.IocMatchService;
+import org.opensearch.securityanalytics.threatIntel.iocscan.dao.IocFindingService;
 import org.opensearch.securityanalytics.transport.SecureTransportAction;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
@@ -42,7 +42,7 @@ import java.util.List;
 
 public class TransportGetIocFindingsAction extends HandledTransportAction<GetIocFindingsRequest, GetIocFindingsResponse> implements SecureTransportAction {
 
-    private final IocMatchService iocMatchService;
+    private final IocFindingService iocFindingService;
 
     private final ClusterService clusterService;
 
@@ -65,7 +65,7 @@ public class TransportGetIocFindingsAction extends HandledTransportAction<GetIoc
         this.settings = settings;
         this.clusterService = clusterService;
         this.threadPool = client.threadPool();
-        this.iocMatchService = new IocMatchService(client, this.clusterService, xContentRegistry);
+        this.iocFindingService = new IocFindingService(client, this.clusterService, xContentRegistry);
         this.filterByEnabled = SecurityAnalyticsSettings.FILTER_BY_BACKEND_ROLES.get(this.settings);
         this.clusterService.getClusterSettings().addSettingsUpdateConsumer(SecurityAnalyticsSettings.FILTER_BY_BACKEND_ROLES, this::setFilterByEnabled);
     }
@@ -134,7 +134,7 @@ public class TransportGetIocFindingsAction extends HandledTransportAction<GetIoc
         searchSourceBuilder.query(queryBuilder).trackTotalHits(true);
 
         this.threadPool.getThreadContext().stashContext();
-        iocMatchService.searchIocMatches(searchSourceBuilder, actionListener);
+        iocFindingService.searchIocMatches(searchSourceBuilder, actionListener);
     }
 
     private void setFilterByEnabled(boolean filterByEnabled) {

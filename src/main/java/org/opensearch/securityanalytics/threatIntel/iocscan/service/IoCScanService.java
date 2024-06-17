@@ -4,7 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.commons.alerting.model.Finding;
-import org.opensearch.securityanalytics.model.threatintel.IocMatch;
+import org.opensearch.securityanalytics.model.threatintel.IocFinding;
 import org.opensearch.securityanalytics.threatIntel.iocscan.dto.IocScanContext;
 import org.opensearch.securityanalytics.threatIntel.iocscan.dto.PerIocTypeFieldMappings;
 import org.opensearch.securityanalytics.threatIntel.iocscan.model.Ioc;
@@ -115,7 +115,7 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
                         .add(ioc.getFeedId());
             }
 
-            List<IocMatch> iocMatches = new ArrayList<>();
+            List<IocFinding> iocFindings = new ArrayList<>();
 
             for (Map.Entry<String, Set<String>> entry : iocValueToFeedIds.entrySet()) {
                 String iocValue = entry.getKey();
@@ -124,7 +124,7 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
                 List<String> relatedDocIds = new ArrayList<>(iocValueToDocIdMap.getOrDefault(iocValue, new HashSet<>()));
                 List<String> feedIdsList = new ArrayList<>(feedIds);
                 try {
-                    IocMatch iocMatch = new IocMatch(
+                    IocFinding iocFinding = new IocFinding(
                             UUID.randomUUID().toString(), // Generating a unique ID
                             relatedDocIds,
                             feedIdsList,
@@ -135,7 +135,7 @@ public abstract class IoCScanService<Data> implements IoCScanServiceInterface<Da
                             timestamp,
                             UUID.randomUUID().toString() // TODO execution ID
                     );
-                    iocMatches.add(iocMatch);
+                    iocFindings.add(iocFinding);
                 } catch (Exception e) {
                     log.error(String.format("skipping creating ioc match for %s due to unexpected failure.", entry.getKey()), e);
                 }

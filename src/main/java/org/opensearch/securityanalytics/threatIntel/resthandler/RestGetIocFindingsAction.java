@@ -11,6 +11,7 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.securityanalytics.SecurityAnalyticsPlugin;
 import org.opensearch.securityanalytics.action.GetFindingsAction;
+import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsAction;
 import org.opensearch.securityanalytics.threatIntel.action.GetIocFindingsRequest;
 
 import java.io.IOException;
@@ -31,8 +32,6 @@ public class RestGetIocFindingsAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        String threatIntelMonitorId = request.param("monitor_id");
-
         String sortString = request.param("sortString", "timestamp");
         String sortOrder = request.param("sortOrder", "asc");
         String missing = request.param("missing");
@@ -81,11 +80,10 @@ public class RestGetIocFindingsAction extends BaseRestHandler {
                 findingIds,
                 startTime,
                 endTime,
-                threatIntelMonitorId,
                 table
         );
         return channel -> client.execute(
-                GetFindingsAction.INSTANCE,
+                GetIocFindingsAction.INSTANCE,
                 getIocFindingsRequest,
                 new RestToXContentListener<>(channel)
         );
@@ -93,7 +91,7 @@ public class RestGetIocFindingsAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return singletonList(new Route(GET, SecurityAnalyticsPlugin.IOC_BASE_URI  + "/findings" + "/_search"));
+        return singletonList(new Route(GET, SecurityAnalyticsPlugin.THREAT_INTEL_BASE_URI  + "/findings" + "/_search"));
     }
 }
 

@@ -9,8 +9,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.securityanalytics.model.threatintel.IocMatch;
-import org.opensearch.securityanalytics.model.threatintel.IocMatchWithDocs;
+import org.opensearch.securityanalytics.model.threatintel.IocFinding;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -24,9 +23,9 @@ public class GetIocFindingsResponse extends ActionResponse implements ToXContent
 
     private Integer totalFindings;
 
-    private List<IocMatchWithDocs> iocFindings;
+    private List<IocFinding> iocFindings;
 
-    public GetIocFindingsResponse(Integer totalFindings, List<IocMatchWithDocs> iocFindings) {
+    public GetIocFindingsResponse(Integer totalFindings, List<IocFinding> iocFindings) {
         super();
         this.totalFindings = totalFindings;
         this.iocFindings = iocFindings;
@@ -35,7 +34,7 @@ public class GetIocFindingsResponse extends ActionResponse implements ToXContent
     public GetIocFindingsResponse(StreamInput sin) throws IOException {
         this(
                 sin.readInt(),
-                Collections.unmodifiableList(sin.readList(IocMatchWithDocs::new))
+                Collections.unmodifiableList(sin.readList(IocFinding::new))
         );
     }
 
@@ -57,7 +56,7 @@ public class GetIocFindingsResponse extends ActionResponse implements ToXContent
         return totalFindings;
     }
 
-    public List<IocMatchWithDocs> getIocFindings() {
+    public List<IocFinding> getIocFindings() {
         return iocFindings;
     }
 }
